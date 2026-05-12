@@ -4,10 +4,13 @@ import { api } from '../api/client';
 import { TestRunCard } from '../components/TestRunCard';
 import styles from './TestRunsPage.module.css';
 
+type ActiveTab = 'qa' | '187';
+
 export function TestRunsPage() {
   const [runs, setRuns] = useState<TestRun[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<ActiveTab>('qa');
 
   useEffect(() => {
     api.getTestRuns()
@@ -28,28 +31,35 @@ export function TestRunsPage() {
     return <p className={styles.message}>No test runs found.</p>;
   }
 
-  const qaRuns = runs.filter((r) => r.environment === 'qa');
-  const serverRuns = runs.filter((r) => r.environment !== 'qa');
+  const filteredRuns = activeTab === 'qa'
+    ? runs.filter((r) => r.environment === 'qa')
+    : runs.filter((r) => r.environment !== 'qa');
 
   return (
-    <div className={styles.columns}>
-      <div className={styles.column}>
-        <h2 className={styles.columnTitle}>QA Server</h2>
-        <div className={styles.list}>
-          {qaRuns.map((run, i) => (
-            <TestRunCard key={i} run={run} />
-          ))}
-          {qaRuns.length === 0 && <p className={styles.empty}>No QA runs found.</p>}
-        </div>
+    <div className={styles.container}>
+      <div className={styles.tabBar}>
+        <button
+          className={`${styles.tab} ${activeTab === 'qa' ? styles.tabActive : ''}`}
+          onClick={() => setActiveTab('qa')}
+        >
+          QA Server
+        </button>
+        <button
+          className={`${styles.tab} ${activeTab === '187' ? styles.tabActive : ''}`}
+          onClick={() => setActiveTab('187')}
+        >
+          187 Server
+        </button>
       </div>
-      <div className={styles.column}>
-        <h2 className={styles.columnTitle}>187 Server</h2>
-        <div className={styles.list}>
-          {serverRuns.map((run, i) => (
-            <TestRunCard key={i} run={run} />
-          ))}
-          {serverRuns.length === 0 && <p className={styles.empty}>No 187 runs found.</p>}
-        </div>
+      <div className={styles.list}>
+        {filteredRuns.map((run, i) => (
+          <TestRunCard key={i} run={run} />
+        ))}
+        {filteredRuns.length === 0 && (
+          <p className={styles.empty}>
+            No {activeTab === 'qa' ? 'QA' : '187'} runs found.
+          </p>
+        )}
       </div>
     </div>
   );
