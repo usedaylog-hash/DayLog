@@ -8,7 +8,7 @@ export function App() {
   return (
     <>
       <Header />
-      <main style={{ maxWidth: 'var(--max-width)', margin: '0 auto', padding: '1.5rem 1rem' }}>
+      <main style={{ padding: '1.5rem 1rem' }}>
         <Routes>
           <Route path="/" element={<TodayPage />} />
           <Route path="/history" element={<HistoryPage />} />

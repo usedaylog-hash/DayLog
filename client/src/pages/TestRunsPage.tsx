@@ -28,11 +28,29 @@ export function TestRunsPage() {
     return <p className={styles.message}>No test runs found.</p>;
   }
 
+  const qaRuns = runs.filter((r) => r.environment === 'qa');
+  const serverRuns = runs.filter((r) => r.environment !== 'qa');
+
   return (
-    <div className={styles.list}>
-      {runs.map((run, i) => (
-        <TestRunCard key={i} run={run} />
-      ))}
+    <div className={styles.columns}>
+      <div className={styles.column}>
+        <h2 className={styles.columnTitle}>QA Server</h2>
+        <div className={styles.list}>
+          {qaRuns.map((run, i) => (
+            <TestRunCard key={i} run={run} />
+          ))}
+          {qaRuns.length === 0 && <p className={styles.empty}>No QA runs found.</p>}
+        </div>
+      </div>
+      <div className={styles.column}>
+        <h2 className={styles.columnTitle}>187 Server</h2>
+        <div className={styles.list}>
+          {serverRuns.map((run, i) => (
+            <TestRunCard key={i} run={run} />
+          ))}
+          {serverRuns.length === 0 && <p className={styles.empty}>No 187 runs found.</p>}
+        </div>
+      </div>
     </div>
   );
 }
