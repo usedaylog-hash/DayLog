@@ -31,12 +31,6 @@ function duration(clockIn: string, clockOut: string | null): string {
 }
 
 export function DayCard({ session, onDelete }: Props) {
-  function handleDelete() {
-    if (window.confirm('Delete this session? This cannot be undone.')) {
-      onDelete?.(session.id);
-    }
-  }
-
   return (
     <div className={styles.card}>
       <div className={styles.header}>
@@ -44,7 +38,7 @@ export function DayCard({ session, onDelete }: Props) {
         <div className={styles.headerRight}>
           <span className={styles.duration}>{duration(session.clock_in, session.clock_out)}</span>
           {onDelete && (
-            <button className={styles.deleteBtn} onClick={handleDelete} title="Delete session">
+            <button className={styles.deleteBtn} onClick={() => onDelete?.(session.id)} title="Delete session">
               &times;
             </button>
           )}

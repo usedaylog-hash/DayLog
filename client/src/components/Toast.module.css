@@ -1,0 +1,40 @@
+.toast {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  background: #1f2937;
+  color: white;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.875rem;
+  z-index: 1000;
+  animation: slideIn 0.2s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.undoBtn {
+  background: none;
+  color: #60a5fa;
+  font-weight: 600;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+}
+
+.undoBtn:hover {
+  background: rgba(96, 165, 250, 0.15);
+}

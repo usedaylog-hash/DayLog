@@ -101,17 +101,6 @@
 }
 
 .failureList li {
-  display: flex;
-  justify-content: space-between;
-  gap: 0.5rem;
   font-size: 0.8125rem;
-}
-
-.failedTestName {
   color: var(--color-text);
-}
-
-.failedTestBrowser {
-  color: var(--color-text-muted);
-  flex-shrink: 0;
 }
