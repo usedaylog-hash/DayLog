@@ -1,0 +1,12 @@
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.loading,
+.empty {
+  text-align: center;
+  color: var(--color-text-muted);
+  margin-top: 3rem;
+}

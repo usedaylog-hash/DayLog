@@ -1,0 +1,29 @@
+.button {
+  width: 100%;
+  padding: 1rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: white;
+  border: none;
+}
+
+.in {
+  background: var(--color-primary);
+}
+
+.in:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+}
+
+.out {
+  background: var(--color-danger);
+}
+
+.out:hover:not(:disabled) {
+  background: var(--color-danger-hover);
+}
+
+.button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

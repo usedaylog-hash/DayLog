@@ -1,0 +1,16 @@
+{
+  "name": "daylog",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Daily work journal — clock in, take notes, clock out, get a summary.",
+  "scripts": {
+    "dev": "concurrently --kill-others \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:client": "cd client && npm run dev",
+    "dev:server": "cd server && npm run dev",
+    "build": "cd client && npm run build",
+    "start": "cd server && npm start"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

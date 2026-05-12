@@ -1,0 +1,20 @@
+.card {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: var(--radius);
+}
+
+.heading {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-success);
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.text {
+  white-space: pre-wrap;
+}
