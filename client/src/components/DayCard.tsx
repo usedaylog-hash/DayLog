@@ -3,6 +3,7 @@ import styles from './DayCard.module.css';
 
 interface Props {
   session: Session;
+  onDelete?: (id: number) => void;
 }
 
 function formatDate(iso: string): string {
@@ -29,12 +30,25 @@ function duration(clockIn: string, clockOut: string | null): string {
   return `${hours}h ${minutes}m`;
 }
 
-export function DayCard({ session }: Props) {
+export function DayCard({ session, onDelete }: Props) {
+  function handleDelete() {
+    if (window.confirm('Delete this session? This cannot be undone.')) {
+      onDelete?.(session.id);
+    }
+  }
+
   return (
     <div className={styles.card}>
       <div className={styles.header}>
         <span className={styles.date}>{formatDate(session.clock_in)}</span>
-        <span className={styles.duration}>{duration(session.clock_in, session.clock_out)}</span>
+        <div className={styles.headerRight}>
+          <span className={styles.duration}>{duration(session.clock_in, session.clock_out)}</span>
+          {onDelete && (
+            <button className={styles.deleteBtn} onClick={handleDelete} title="Delete session">
+              &times;
+            </button>
+          )}
+        </div>
       </div>
       <div className={styles.time}>{formatTimeRange(session.clock_in, session.clock_out)}</div>
       {session.summary && <p className={styles.summary}>{session.summary}</p>}

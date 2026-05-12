@@ -14,3 +14,22 @@ export interface Note {
   timestamp: string;
   created_at: string;
 }
+
+export interface FailedTest {
+  title: string;
+  projectName: string;
+  errorMessage?: string;
+}
+
+export interface TestRun {
+  timestamp: string;
+  environment: string;
+  total: number;
+  passed: number;
+  failed: number;
+  skipped: number;
+  flaky: number;
+  duration: number;
+  reportPath: string;
+  failedTests: FailedTest[];
+}

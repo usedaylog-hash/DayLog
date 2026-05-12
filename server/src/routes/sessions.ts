@@ -91,6 +91,23 @@ router.get('/', (_req, res) => {
   res.json(result);
 });
 
+// DELETE /api/sessions/:id
+router.delete('/:id', (req, res) => {
+  const session = db.prepare(
+    'SELECT * FROM sessions WHERE id = ?'
+  ).get(req.params.id) as Session | undefined;
+
+  if (!session) {
+    res.status(404).json({ error: 'Session not found' });
+    return;
+  }
+
+  db.prepare('DELETE FROM notes WHERE session_id = ?').run(session.id);
+  db.prepare('DELETE FROM sessions WHERE id = ?').run(session.id);
+
+  res.json({ ok: true });
+});
+
 // GET /api/sessions/:id
 router.get('/:id', (req, res) => {
   const session = db.prepare(

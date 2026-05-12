@@ -19,6 +19,11 @@ export function HistoryPage() {
     return <p className={styles.loading}>Loading...</p>;
   }
 
+  async function handleDelete(id: number) {
+    await api.deleteSession(id);
+    setSessions((prev) => prev.filter((s) => s.id !== id));
+  }
+
   if (sessions.length === 0) {
     return <p className={styles.empty}>No sessions yet. Clock in on the Today page to get started.</p>;
   }
@@ -26,7 +31,7 @@ export function HistoryPage() {
   return (
     <div className={styles.list}>
       {sessions.map((s) => (
-        <DayCard key={s.id} session={s} />
+        <DayCard key={s.id} session={s} onDelete={handleDelete} />
       ))}
     </div>
   );

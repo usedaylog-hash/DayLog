@@ -1,4 +1,4 @@
-import type { Session, Note } from '../types';
+import type { Session, Note, TestRun } from '../types';
 
 const BASE = '/api';
 
@@ -33,6 +33,14 @@ export const api = {
 
   getSession(id: number): Promise<Session> {
     return request(`/sessions/${id}`);
+  },
+
+  deleteSession(id: number): Promise<void> {
+    return request(`/sessions/${id}`, { method: 'DELETE' });
+  },
+
+  getTestRuns(): Promise<TestRun[]> {
+    return request('/test-runs');
   },
 
   addNote(content: string): Promise<Note> {
