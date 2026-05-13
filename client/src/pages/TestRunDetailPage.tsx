@@ -108,6 +108,28 @@ export function TestRunDetailPage() {
                 {isOpen && (
                   <div className={styles.errorBlock}>
                     <pre className={styles.errorPre}>{test.error}</pre>
+                    {test.attachments.length > 0 && (
+                      <div className={styles.attachments}>
+                        {test.attachments.map((att, j) => {
+                          if (!att.available) {
+                            return (
+                              <p key={j} className={styles.attachmentUnavailable}>
+                                {att.type === 'screenshot' ? 'Screenshot' : 'Video'} not available (files only persist for the most recent run)
+                              </p>
+                            );
+                          }
+                          const url = `/api/attachments/${att.path}`;
+                          if (att.type === 'screenshot') {
+                            return <img key={j} src={url} alt="Failure screenshot" className={styles.attachmentImg} />;
+                          }
+                          return (
+                            <video key={j} controls className={styles.attachmentVideo}>
+                              <source src={url} />
+                            </video>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

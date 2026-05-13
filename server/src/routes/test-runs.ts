@@ -6,7 +6,8 @@ import { fileURLToPath } from 'url';
 const router = Router();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const REPORTS_DIR = path.resolve(__dirname, '../../../../BlackBox/reports');
+const BLACKBOX_DIR = path.resolve(__dirname, '../../../../BlackBox');
+const REPORTS_DIR = path.join(BLACKBOX_DIR, 'reports');
 
 interface CronRun {
   timestamp: string;
@@ -162,7 +163,12 @@ router.get('/:filename', (req, res) => {
 
     // Parse error detail blocks: each starts with "  N) [browser] › ..."
     // and continues until the next numbered block or "  Slow test file:" or summary lines
-    const failedTestDetails: { name: string; error: string }[] = [];
+    interface Attachment {
+      type: 'screenshot' | 'video';
+      path: string;
+      available: boolean;
+    }
+    const failedTestDetails: { name: string; error: string; attachments: Attachment[] }[] = [];
     const errorBlockStart = /^  (\d+)\) (.+)$/;
     const blockEnd = /^  (Slow test file:|\d+ failed$|\d+ skipped$|\d+ passed)/;
 
@@ -181,7 +187,7 @@ router.get('/:filename', (req, res) => {
         // Trim leading/trailing blank lines from error block
         while (errorLines.length > 0 && errorLines[0].trim() === '') errorLines.shift();
         while (errorLines.length > 0 && errorLines[errorLines.length - 1].trim() === '') errorLines.pop();
-        failedTestDetails.push({ name, error: errorLines.join('\n') });
+        failedTestDetails.push({ name, error: errorLines.join('\n'), attachments: [] });
       } else {
         i++;
       }
@@ -191,6 +197,30 @@ router.get('/:filename', (req, res) => {
     const ansiRegex = /\x1b\[\d+m/g;
     for (const detail of failedTestDetails) {
       detail.error = detail.error.replace(ansiRegex, '');
+    }
+
+    // Extract attachments from error blocks
+    // Archived attachments live at reports/attachments/<report-name>/<subdir>/file
+    const reportName = filename.replace('.txt', '');
+    const attachmentsDir = path.join(REPORTS_DIR, 'attachments', reportName);
+    const attachmentBlockRegex = /\s*attachment #\d+: \S+ \(([^)]+)\)\s*─+\n\s*(test-results\/[^\n]+)\n\s*─+/g;
+    for (const detail of failedTestDetails) {
+      let match;
+      while ((match = attachmentBlockRegex.exec(detail.error)) !== null) {
+        const mimeType = match[1];
+        const filePath = match[2].trim();
+        const type: 'screenshot' | 'video' = mimeType.startsWith('video/') ? 'video' : 'screenshot';
+        // Strip the "test-results/" prefix since the archive copies the contents
+        const relativePath = filePath.replace(/^test-results\//, '');
+        const fullPath = path.join(attachmentsDir, relativePath);
+        detail.attachments.push({
+          type,
+          path: `${reportName}/${relativePath}`,
+          available: fs.existsSync(fullPath),
+        });
+      }
+      // Strip attachment blocks from error text
+      detail.error = detail.error.replace(attachmentBlockRegex, '').trimEnd();
     }
 
     res.json({ ...run, failedTestDetails, skippedTests });

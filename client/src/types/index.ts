@@ -27,9 +27,16 @@ export interface TestRun {
   filename: string;
 }
 
+export interface Attachment {
+  type: 'screenshot' | 'video';
+  path: string;
+  available: boolean;
+}
+
 export interface FailedTestDetail {
   name: string;
   error: string;
+  attachments: Attachment[];
 }
 
 export interface TestRunDetail extends TestRun {

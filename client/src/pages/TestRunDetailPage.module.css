@@ -189,6 +189,32 @@
   border-bottom: none;
 }
 
+.attachments {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.attachmentImg {
+  max-width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.attachmentVideo {
+  max-width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.attachmentUnavailable {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
 .message {
   text-align: center;
   color: var(--color-text-muted);
