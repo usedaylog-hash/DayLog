@@ -1,4 +1,16 @@
+.cardLink {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+
+.cardLink:hover .card {
+  border-color: var(--color-primary, #3b82f6);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
 .card {
+  transition: border-color 0.15s, box-shadow 0.15s;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);

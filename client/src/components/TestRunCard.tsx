@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import type { TestRun } from '../types';
 import styles from './TestRunCard.module.css';
 
@@ -23,34 +24,36 @@ export function TestRunCard({ run }: Props) {
   const rateClass = rate === 100 ? styles.green : rate >= 80 ? styles.yellow : styles.red;
 
   return (
-    <div className={styles.card}>
-      <div className={styles.header}>
-        <span className={styles.date}>{formatDate(run.timestamp)}</span>
-        <span className={`${styles.badge} ${rateClass}`}>{rate}%</span>
-      </div>
-
-      <div className={styles.meta}>
-        <span className={styles.env}>{run.environment}</span>
-        <span className={styles.duration}>{run.duration}</span>
-      </div>
-
-      <div className={styles.stats}>
-        <span className={styles.passed}>{run.passed} passed</span>
-        {run.failed > 0 && <span className={styles.failed}>{run.failed} failed</span>}
-        {run.skipped > 0 && <span className={styles.skipped}>{run.skipped} skipped</span>}
-        <span className={styles.total}>{run.total} total</span>
-      </div>
-
-      {run.failedTests.length > 0 && (
-        <div className={styles.failures}>
-          <h4 className={styles.failuresHeading}>Failed tests</h4>
-          <ul className={styles.failureList}>
-            {run.failedTests.map((test, i) => (
-              <li key={i}>{test}</li>
-            ))}
-          </ul>
+    <Link to={`/test-runs/${run.filename}`} className={styles.cardLink}>
+      <div className={styles.card}>
+        <div className={styles.header}>
+          <span className={styles.date}>{formatDate(run.timestamp)}</span>
+          <span className={`${styles.badge} ${rateClass}`}>{rate}%</span>
         </div>
-      )}
-    </div>
+
+        <div className={styles.meta}>
+          <span className={styles.env}>{run.environment}</span>
+          <span className={styles.duration}>{run.duration}</span>
+        </div>
+
+        <div className={styles.stats}>
+          <span className={styles.passed}>{run.passed} passed</span>
+          {run.failed > 0 && <span className={styles.failed}>{run.failed} failed</span>}
+          {run.skipped > 0 && <span className={styles.skipped}>{run.skipped} skipped</span>}
+          <span className={styles.total}>{run.total} total</span>
+        </div>
+
+        {run.failedTests.length > 0 && (
+          <div className={styles.failures}>
+            <h4 className={styles.failuresHeading}>Failed tests</h4>
+            <ul className={styles.failureList}>
+              {run.failedTests.map((test, i) => (
+                <li key={i}>{test}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    </Link>
   );
 }

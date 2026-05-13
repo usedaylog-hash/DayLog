@@ -125,4 +125,79 @@ router.get('/', (_req, res) => {
   }
 });
 
+// GET /api/test-runs/:filename
+router.get('/:filename', (req, res) => {
+  try {
+    const { filename } = req.params;
+
+    // Validate filename format to prevent path traversal
+    if (!/^regression-.+-\d{8}-\d{6}\.txt$/.test(filename)) {
+      res.status(400).json({ error: 'Invalid filename format' });
+      return;
+    }
+
+    const filepath = path.join(REPORTS_DIR, filename);
+    if (!fs.existsSync(filepath)) {
+      res.status(404).json({ error: 'Report not found' });
+      return;
+    }
+
+    const run = parseRegressionFile(filepath, filename);
+    if (!run) {
+      res.status(500).json({ error: 'Could not parse report' });
+      return;
+    }
+
+    const content = fs.readFileSync(filepath, 'utf-8');
+    const lines = content.split('\n');
+
+    // Parse skipped tests from lines starting with "  -"
+    const skippedTests: string[] = [];
+    for (const line of lines) {
+      const skipMatch = line.match(/^  -\s+\d+\s+(.+)$/);
+      if (skipMatch) {
+        skippedTests.push(skipMatch[1].trim());
+      }
+    }
+
+    // Parse error detail blocks: each starts with "  N) [browser] › ..."
+    // and continues until the next numbered block or "  Slow test file:" or summary lines
+    const failedTestDetails: { name: string; error: string }[] = [];
+    const errorBlockStart = /^  (\d+)\) (.+)$/;
+    const blockEnd = /^  (Slow test file:|\d+ failed$|\d+ skipped$|\d+ passed)/;
+
+    let i = 0;
+    while (i < lines.length) {
+      const startMatch = lines[i].match(errorBlockStart);
+      if (startMatch) {
+        const name = startMatch[2].trim();
+        const errorLines: string[] = [];
+        i++;
+        while (i < lines.length) {
+          if (errorBlockStart.test(lines[i]) || blockEnd.test(lines[i])) break;
+          errorLines.push(lines[i]);
+          i++;
+        }
+        // Trim leading/trailing blank lines from error block
+        while (errorLines.length > 0 && errorLines[0].trim() === '') errorLines.shift();
+        while (errorLines.length > 0 && errorLines[errorLines.length - 1].trim() === '') errorLines.pop();
+        failedTestDetails.push({ name, error: errorLines.join('\n') });
+      } else {
+        i++;
+      }
+    }
+
+    // Strip ANSI escape codes from error text
+    const ansiRegex = /\x1b\[\d+m/g;
+    for (const detail of failedTestDetails) {
+      detail.error = detail.error.replace(ansiRegex, '');
+    }
+
+    res.json({ ...run, failedTestDetails, skippedTests });
+  } catch (err) {
+    console.error('Failed to read regression file:', err);
+    res.status(500).json({ error: 'Could not load test run detail' });
+  }
+});
+
 export { router as testRunsRouter };

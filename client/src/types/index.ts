@@ -26,3 +26,13 @@ export interface TestRun {
   failedTests: string[];
   filename: string;
 }
+
+export interface FailedTestDetail {
+  name: string;
+  error: string;
+}
+
+export interface TestRunDetail extends TestRun {
+  failedTestDetails: FailedTestDetail[];
+  skippedTests: string[];
+}

@@ -1,4 +1,4 @@
-import type { Session, Note, TestRun } from '../types';
+import type { Session, Note, TestRun, TestRunDetail } from '../types';
 
 const BASE = '/api';
 
@@ -41,6 +41,10 @@ export const api = {
 
   getTestRuns(): Promise<TestRun[]> {
     return request('/test-runs');
+  },
+
+  getTestRunDetail(filename: string): Promise<TestRunDetail> {
+    return request(`/test-runs/${encodeURIComponent(filename)}`);
   },
 
   addNote(content: string): Promise<Note> {
