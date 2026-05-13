@@ -1,8 +1,11 @@
 import { Router } from 'express';
+import fs from 'fs';
 import { db } from '../db/connection.js';
 import type { Session, Note, SessionWithNotes } from '../types/index.js';
 import { sweepCommits } from './commits.js';
 import type { Commit } from './commits.js';
+
+const LAST_SESSION_PATH = '/home/luke/MyCode/src/BlackBox/LAST-SESSION.md';
 
 const router = Router();
 
@@ -31,7 +34,7 @@ router.post('/clock-in', (_req, res) => {
 });
 
 // POST /api/sessions/clock-out
-router.post('/clock-out', (_req, res) => {
+router.post('/clock-out', (req, res) => {
   const session = db.prepare(
     'SELECT * FROM sessions WHERE clock_out IS NULL'
   ).get() as Session | undefined;
@@ -50,16 +53,29 @@ router.post('/clock-out', (_req, res) => {
 
   const now = new Date().toISOString();
   const summary = generateSummary(session.clock_in, now, notes, commits);
+  const handoffNote = req.body?.handoffNote as string | undefined;
+  const handoff = generateHandoff(session.clock_in, now, commits, handoffNote);
 
   db.prepare(
-    'UPDATE sessions SET clock_out = ?, summary = ? WHERE id = ?'
-  ).run(now, summary, session.id);
+    'UPDATE sessions SET clock_out = ?, summary = ?, handoff = ? WHERE id = ?'
+  ).run(now, summary, handoff, session.id);
+
+  writeLastSessionFile(handoff);
 
   const updated = db.prepare(
     'SELECT * FROM sessions WHERE id = ?'
   ).get(session.id) as Session;
 
   res.json({ ...updated, notes, commits });
+});
+
+// GET /api/sessions/last-handoff
+router.get('/last-handoff', (_req, res) => {
+  const row = db.prepare(
+    'SELECT handoff FROM sessions WHERE clock_out IS NOT NULL ORDER BY clock_out DESC LIMIT 1'
+  ).get() as { handoff: string | null } | undefined;
+
+  res.json({ handoff: row?.handoff ?? null });
 });
 
 // GET /api/sessions/current
@@ -179,6 +195,54 @@ function generateSummary(clockIn: string, clockOut: string, notes: Note[], commi
   }
 
   return lines.join('\n');
+}
+
+function generateHandoff(clockIn: string, clockOut: string, commits: Commit[], note?: string): string {
+  const start = new Date(clockIn);
+  const end = new Date(clockOut);
+  const ms = end.getTime() - start.getTime();
+  const hours = Math.floor(ms / 3_600_000);
+  const minutes = Math.floor((ms % 3_600_000) / 60_000);
+  const duration = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+
+  const dateStr = end.toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+
+  const lines: string[] = [
+    '# Last Session Handoff',
+    '',
+    `**Date:** ${dateStr}`,
+    `**Duration:** ${duration}`,
+  ];
+
+  if (commits.length > 0) {
+    lines.push('', '## Commits');
+    for (const commit of commits) {
+      const short = commit.hash.slice(0, 7);
+      lines.push(`- \`${short}\` ${commit.message}`);
+      if (commit.comment) {
+        lines.push(`  - _${commit.comment}_`);
+      }
+    }
+  }
+
+  if (note?.trim()) {
+    lines.push('', '## What\'s Still Open', note.trim());
+  }
+
+  return lines.join('\n') + '\n';
+}
+
+function writeLastSessionFile(handoff: string): void {
+  try {
+    fs.writeFileSync(LAST_SESSION_PATH, handoff, 'utf-8');
+  } catch (err) {
+    console.error('Failed to write LAST-SESSION.md:', err);
+  }
 }
 
 export { router as sessionsRouter };

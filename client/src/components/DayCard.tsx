@@ -52,6 +52,12 @@ export function DayCard({ session, onDelete }: Props) {
       {session.notes && session.notes.length > 0 && (
         <div className={styles.noteCount}>{session.notes.length} note{session.notes.length !== 1 ? 's' : ''}</div>
       )}
+      {session.handoff && (
+        <details className={styles.handoffDetails}>
+          <summary className={styles.handoffSummary}>Handoff</summary>
+          <pre className={styles.handoffContent}>{session.handoff}</pre>
+        </details>
+      )}
     </div>
   );
 }

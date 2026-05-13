@@ -58,3 +58,30 @@
   font-size: 0.8125rem;
   color: var(--color-text-muted);
 }
+
+.handoffDetails {
+  margin-top: 0.75rem;
+  border-top: 1px solid var(--color-border);
+  padding-top: 0.5rem;
+}
+
+.handoffSummary {
+  cursor: pointer;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  user-select: none;
+}
+
+.handoffSummary:hover {
+  color: var(--color-text);
+}
+
+.handoffContent {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-family: inherit;
+  font-size: 0.8125rem;
+  margin: 0.5rem 0 0;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}

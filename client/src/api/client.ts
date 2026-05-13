@@ -19,8 +19,15 @@ export const api = {
     return request('/sessions/clock-in', { method: 'POST' });
   },
 
-  clockOut(): Promise<Session> {
-    return request('/sessions/clock-out', { method: 'POST' });
+  clockOut(handoffNote?: string): Promise<Session> {
+    return request('/sessions/clock-out', {
+      method: 'POST',
+      body: JSON.stringify({ handoffNote }),
+    });
+  },
+
+  getLastHandoff(): Promise<{ handoff: string | null }> {
+    return request('/sessions/last-handoff');
   },
 
   getCurrentSession(): Promise<Session | null> {

@@ -9,7 +9,7 @@ export function HistoryPage() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [pendingDelete, setPendingDelete] = useState<{ id: number; session: Session } | null>(null);
-  const deleteTimer = useRef<ReturnType<typeof setTimeout>>();
+  const deleteTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => {
     api.getSessions().then((data) => {

@@ -10,3 +10,101 @@
   margin-top: 0.75rem;
   font-size: 0.875rem;
 }
+
+.handoffPanel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  margin-top: 1rem;
+  box-shadow: var(--shadow);
+}
+
+.handoffTitle {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+}
+
+.handoffDesc {
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+  margin: 0 0 0.75rem;
+}
+
+.handoffTextarea {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: 0.875rem;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.handoffTextarea:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
+
+.handoffButtons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.handoffCancel {
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+
+.handoffCancel:hover {
+  color: var(--color-text);
+}
+
+.handoffConfirm {
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius);
+  background: var(--color-danger, #dc2626);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+
+.handoffConfirm:hover {
+  opacity: 0.9;
+}
+
+.handoffConfirm:disabled,
+.handoffCancel:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.previousHandoff {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  margin-top: 1.5rem;
+  box-shadow: var(--shadow);
+}
+
+.handoffContent {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-family: inherit;
+  font-size: 0.875rem;
+  margin: 0;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}

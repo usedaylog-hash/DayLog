@@ -13,6 +13,7 @@ export interface Session {
   clock_in: string;
   clock_out: string | null;
   summary: string | null;
+  handoff: string | null;
   created_at: string;
   notes?: Note[];
   commits?: Commit[];

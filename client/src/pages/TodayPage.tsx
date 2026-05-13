@@ -14,12 +14,19 @@ export function TodayPage() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [lastCompleted, setLastCompleted] = useState<Session | null>(null);
+  const [lastHandoff, setLastHandoff] = useState<string | null>(null);
+  const [showHandoffPanel, setShowHandoffPanel] = useState(false);
+  const [handoffNote, setHandoffNote] = useState('');
 
   const loadSession = useCallback(async () => {
     try {
       const current = await api.getCurrentSession();
       setSession(current);
       setCommits(current?.commits || []);
+      if (!current) {
+        const { handoff } = await api.getLastHandoff();
+        setLastHandoff(handoff);
+      }
     } catch {
       setSession(null);
     } finally {
@@ -59,16 +66,28 @@ export function TodayPage() {
     }
   }
 
-  async function handleClockOut() {
+  function handleClockOutClick() {
+    setShowHandoffPanel(true);
+  }
+
+  async function handleClockOutConfirm() {
     setActionLoading(true);
     try {
-      const completed = await api.clockOut();
+      const completed = await api.clockOut(handoffNote || undefined);
       setLastCompleted(completed);
+      setLastHandoff(completed.handoff);
       setSession(null);
       setCommits([]);
+      setShowHandoffPanel(false);
+      setHandoffNote('');
     } finally {
       setActionLoading(false);
     }
+  }
+
+  function handleClockOutCancel() {
+    setShowHandoffPanel(false);
+    setHandoffNote('');
   }
 
   async function handleComment(id: number, comment: string) {
@@ -90,7 +109,7 @@ export function TodayPage() {
         isClockedIn={isClockedIn}
         loading={actionLoading}
         onClockIn={handleClockIn}
-        onClockOut={handleClockOut}
+        onClockOut={handleClockOutClick}
       />
 
       {isClockedIn && (
@@ -103,9 +122,48 @@ export function TodayPage() {
         </p>
       )}
 
+      {showHandoffPanel && (
+        <div className={styles.handoffPanel}>
+          <h3 className={styles.handoffTitle}>Session Handoff</h3>
+          <p className={styles.handoffDesc}>
+            Commits are included automatically. Add any notes about what's still open:
+          </p>
+          <textarea
+            className={styles.handoffTextarea}
+            placeholder="What's still open?"
+            value={handoffNote}
+            onChange={(e) => setHandoffNote(e.target.value)}
+            rows={4}
+          />
+          <div className={styles.handoffButtons}>
+            <button
+              className={styles.handoffCancel}
+              onClick={handleClockOutCancel}
+              disabled={actionLoading}
+            >
+              Cancel
+            </button>
+            <button
+              className={styles.handoffConfirm}
+              onClick={handleClockOutConfirm}
+              disabled={actionLoading}
+            >
+              {actionLoading ? 'Clocking out...' : 'Clock Out'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {isClockedIn && <CommitList commits={commits} onComment={handleComment} />}
 
       {lastCompleted?.summary && <DaySummary summary={lastCompleted.summary} />}
+
+      {!isClockedIn && !showHandoffPanel && lastHandoff && (
+        <div className={styles.previousHandoff}>
+          <h3 className={styles.handoffTitle}>Previous Session</h3>
+          <pre className={styles.handoffContent}>{lastHandoff}</pre>
+        </div>
+      )}
     </div>
   );
 }
