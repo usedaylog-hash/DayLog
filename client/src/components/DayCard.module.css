@@ -4,6 +4,7 @@
   border-radius: var(--radius);
   padding: 1rem;
   box-shadow: var(--shadow);
+  transition: box-shadow var(--transition-fast);
 }
 
 .header {

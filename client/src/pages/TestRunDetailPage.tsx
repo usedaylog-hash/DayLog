@@ -64,7 +64,7 @@ export function TestRunDetailPage() {
   const rateClass = rate === 100 ? styles.green : rate >= 80 ? styles.yellow : styles.red;
 
   return (
-    <div className={styles.container}>
+    <div className="container">
       <Link to="/test-runs" className={styles.backLink}>
         &larr; Back to Test Runs
       </Link>

@@ -46,7 +46,7 @@
 
 .handoffTextarea:focus {
   outline: none;
-  border-color: var(--color-accent);
+  border-color: var(--color-primary);
 }
 
 .handoffButtons {
@@ -64,6 +64,7 @@
   border: 1px solid var(--color-border);
   cursor: pointer;
   font-size: 0.875rem;
+  transition: color var(--transition-fast), background-color var(--transition-fast);
 }
 
 .handoffCancel:hover {
@@ -78,6 +79,7 @@
   border: none;
   cursor: pointer;
   font-size: 0.875rem;
+  transition: opacity var(--transition-fast), background-color var(--transition-fast);
 }
 
 .handoffConfirm:hover {

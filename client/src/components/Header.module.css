@@ -30,7 +30,7 @@
   font-weight: 500;
   padding: 0.25rem 0.5rem;
   border-radius: var(--radius);
-  transition: color 0.15s;
+  transition: color var(--transition-fast);
 }
 
 .nav a:hover {
@@ -39,4 +39,11 @@
 
 .active {
   color: var(--color-primary) !important;
+}
+
+@media (max-width: 480px) {
+  .inner {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
 }

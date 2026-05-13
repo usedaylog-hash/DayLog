@@ -104,7 +104,7 @@ export function TodayPage() {
   const isClockedIn = session !== null;
 
   return (
-    <div style={{ maxWidth: 'var(--max-width)', margin: '0 auto' }}>
+    <div className="container">
       <ClockButton
         isClockedIn={isClockedIn}
         loading={actionLoading}

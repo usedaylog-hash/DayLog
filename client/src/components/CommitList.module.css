@@ -80,3 +80,15 @@
   text-align: center;
   margin-top: 2rem;
 }
+
+@media (max-width: 640px) {
+  .header {
+    flex-wrap: wrap;
+  }
+
+  .message {
+    order: 1;
+    flex-basis: 100%;
+    white-space: normal;
+  }
+}

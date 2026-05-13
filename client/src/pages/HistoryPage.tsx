@@ -62,7 +62,7 @@ export function HistoryPage() {
   }
 
   return (
-    <div style={{ maxWidth: 'var(--max-width)', margin: '0 auto' }}>
+    <div className="container">
       <div className={styles.list}>
         {sessions.map((s) => (
           <DayCard key={s.id} session={s} onDelete={handleDelete} />

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import styles from './Toast.module.css';
 
 interface Props {
@@ -9,13 +9,20 @@ interface Props {
 }
 
 export function Toast({ message, onUndo, onDismiss, duration = 5000 }: Props) {
+  const [exiting, setExiting] = useState(false);
+
+  const startExit = useCallback(() => {
+    setExiting(true);
+    setTimeout(onDismiss, 200);
+  }, [onDismiss]);
+
   useEffect(() => {
-    const timer = setTimeout(onDismiss, duration);
+    const timer = setTimeout(startExit, duration);
     return () => clearTimeout(timer);
-  }, [onDismiss, duration]);
+  }, [startExit, duration]);
 
   return (
-    <div className={styles.toast}>
+    <div className={`${styles.toast} ${exiting ? styles.exiting : ''}`}>
       <span>{message}</span>
       <button className={styles.undoBtn} onClick={onUndo}>Undo</button>
     </div>

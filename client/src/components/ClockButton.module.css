@@ -5,22 +5,31 @@
   font-weight: 600;
   color: white;
   border: none;
+  transition: background-color var(--transition-normal), transform var(--transition-fast), box-shadow var(--transition-normal);
+}
+
+.button:active:not(:disabled) {
+  transform: scale(0.98);
 }
 
 .in {
   background: var(--color-primary);
+  box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
 }
 
 .in:hover:not(:disabled) {
   background: var(--color-primary-hover);
+  box-shadow: 0 0 12px rgba(37, 99, 235, 0.3);
 }
 
 .out {
   background: var(--color-danger);
+  box-shadow: 0 0 0 0 rgba(220, 38, 38, 0);
 }
 
 .out:hover:not(:disabled) {
   background: var(--color-danger-hover);
+  box-shadow: 0 0 12px rgba(220, 38, 38, 0.3);
 }
 
 .button:disabled {

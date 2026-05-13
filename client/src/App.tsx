@@ -9,7 +9,7 @@ export function App() {
   return (
     <>
       <Header />
-      <main style={{ padding: '1.5rem 1rem' }}>
+      <main>
         <Routes>
           <Route path="/" element={<TodayPage />} />
           <Route path="/history" element={<HistoryPage />} />

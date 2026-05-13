@@ -2,7 +2,7 @@
   position: fixed;
   top: 1rem;
   right: 1rem;
-  background: #1f2937;
+  background: var(--color-surface-dark);
   color: white;
   padding: 0.75rem 1rem;
   border-radius: var(--radius);
@@ -13,6 +13,10 @@
   font-size: 0.875rem;
   z-index: 1000;
   animation: slideIn 0.2s ease-out;
+}
+
+.exiting {
+  animation: slideOut 0.2s ease-in forwards;
 }
 
 @keyframes slideIn {
@@ -26,9 +30,20 @@
   }
 }
 
+@keyframes slideOut {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
 .undoBtn {
   background: none;
-  color: #60a5fa;
+  color: var(--color-primary-light);
   font-weight: 600;
   padding: 0.25rem 0.5rem;
   border-radius: 4px;

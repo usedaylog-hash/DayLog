@@ -1,8 +1,3 @@
-.container {
-  max-width: 800px;
-  margin: 0 auto;
-}
-
 .backLink {
   display: inline-block;
   margin-bottom: 1rem;
@@ -44,18 +39,18 @@
 }
 
 .green {
-  background: #dcfce7;
-  color: #15803d;
+  background: var(--color-success-badge-bg);
+  color: var(--color-success-text);
 }
 
 .yellow {
-  background: #fef9c3;
-  color: #a16207;
+  background: var(--color-warning-bg);
+  color: var(--color-warning-text);
 }
 
 .red {
-  background: #fee2e2;
-  color: #b91c1c;
+  background: var(--color-danger-bg);
+  color: var(--color-danger-text);
 }
 
 .meta {
@@ -79,15 +74,15 @@
 }
 
 .passed {
-  color: #16a34a;
+  color: var(--color-success);
 }
 
 .failed {
-  color: #dc2626;
+  color: var(--color-danger);
 }
 
 .skipped {
-  color: #a16207;
+  color: var(--color-warning);
 }
 
 .total {
@@ -107,11 +102,11 @@
 }
 
 .failedHeading {
-  color: #dc2626;
+  color: var(--color-danger);
 }
 
 .skippedHeading {
-  color: #a16207;
+  color: var(--color-warning);
 }
 
 .failedCard {
@@ -143,7 +138,7 @@
 
 .chevron {
   font-size: 0.75rem;
-  transition: transform 0.15s;
+  transition: transform var(--transition-fast);
   flex-shrink: 0;
 }
 
@@ -158,7 +153,7 @@
 .errorBlock {
   padding: 0.75rem 1rem;
   border-top: 1px solid var(--color-border);
-  background: #fafafa;
+  background: var(--color-surface-raised);
   overflow-x: auto;
 }
 
@@ -219,4 +214,16 @@
   text-align: center;
   color: var(--color-text-muted);
   margin-top: 3rem;
+}
+
+@media (max-width: 640px) {
+  .stats {
+    flex-wrap: wrap;
+  }
+
+  .summaryHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
 }

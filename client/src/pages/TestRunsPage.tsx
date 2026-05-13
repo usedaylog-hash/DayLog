@@ -36,7 +36,7 @@ export function TestRunsPage() {
     : runs.filter((r) => r.environment !== 'qa');
 
   return (
-    <div className={styles.container}>
+    <div className="container">
       <div className={styles.tabBar}>
         <button
           className={`${styles.tab} ${activeTab === 'qa' ? styles.tabActive : ''}`}
