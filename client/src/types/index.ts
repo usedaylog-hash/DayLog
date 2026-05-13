@@ -1,3 +1,13 @@
+export interface Commit {
+  id: number;
+  session_id: number;
+  hash: string;
+  message: string;
+  author: string;
+  timestamp: string;
+  comment: string | null;
+}
+
 export interface Session {
   id: number;
   clock_in: string;
@@ -5,6 +15,7 @@ export interface Session {
   summary: string | null;
   created_at: string;
   notes?: Note[];
+  commits?: Commit[];
 }
 
 export interface Note {

@@ -1,14 +1,16 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { Session } from '../types';
+import type { Session, Commit } from '../types';
 import { api } from '../api/client';
 import { ClockButton } from '../components/ClockButton';
-import { NoteEntry } from '../components/NoteEntry';
-import { NoteList } from '../components/NoteList';
+import { CommitList } from '../components/CommitList';
 import { DaySummary } from '../components/DaySummary';
 import styles from './TodayPage.module.css';
 
+const POLL_INTERVAL = 15_000;
+
 export function TodayPage() {
   const [session, setSession] = useState<Session | null>(null);
+  const [commits, setCommits] = useState<Commit[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [lastCompleted, setLastCompleted] = useState<Session | null>(null);
@@ -17,6 +19,7 @@ export function TodayPage() {
     try {
       const current = await api.getCurrentSession();
       setSession(current);
+      setCommits(current?.commits || []);
     } catch {
       setSession(null);
     } finally {
@@ -28,11 +31,28 @@ export function TodayPage() {
     loadSession();
   }, [loadSession]);
 
+  // Poll for commits while clocked in
+  useEffect(() => {
+    if (!session) return;
+
+    const id = setInterval(async () => {
+      try {
+        const fresh = await api.getSessionCommits();
+        setCommits(fresh);
+      } catch {
+        // ignore poll errors
+      }
+    }, POLL_INTERVAL);
+
+    return () => clearInterval(id);
+  }, [session]);
+
   async function handleClockIn() {
     setActionLoading(true);
     try {
       const newSession = await api.clockIn();
       setSession(newSession);
+      setCommits([]);
       setLastCompleted(null);
     } finally {
       setActionLoading(false);
@@ -45,15 +65,16 @@ export function TodayPage() {
       const completed = await api.clockOut();
       setLastCompleted(completed);
       setSession(null);
+      setCommits([]);
     } finally {
       setActionLoading(false);
     }
   }
 
-  async function handleAddNote(content: string) {
-    const note = await api.addNote(content);
-    setSession((prev) =>
-      prev ? { ...prev, notes: [...(prev.notes || []), note] } : prev
+  async function handleComment(id: number, comment: string) {
+    await api.updateCommitComment(id, comment);
+    setCommits((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, comment: comment || null } : c))
     );
   }
 
@@ -82,9 +103,7 @@ export function TodayPage() {
         </p>
       )}
 
-      <NoteEntry onSubmit={handleAddNote} disabled={!isClockedIn} />
-
-      {isClockedIn && session.notes && <NoteList notes={session.notes} />}
+      {isClockedIn && <CommitList commits={commits} onComment={handleComment} />}
 
       {lastCompleted?.summary && <DaySummary summary={lastCompleted.summary} />}
     </div>

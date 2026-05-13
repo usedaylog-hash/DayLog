@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { db } from '../db/connection.js';
 import type { Session, Note, SessionWithNotes } from '../types/index.js';
+import { sweepCommits } from './commits.js';
+import type { Commit } from './commits.js';
 
 const router = Router();
 
@@ -25,7 +27,7 @@ router.post('/clock-in', (_req, res) => {
     'SELECT * FROM sessions WHERE id = ?'
   ).get(result.lastInsertRowid) as Session;
 
-  res.status(201).json({ ...session, notes: [] });
+  res.status(201).json({ ...session, notes: [], commits: [] });
 });
 
 // POST /api/sessions/clock-out
@@ -43,8 +45,11 @@ router.post('/clock-out', (_req, res) => {
     'SELECT * FROM notes WHERE session_id = ? ORDER BY timestamp ASC'
   ).all(session.id) as Note[];
 
+  // Final sweep for any last-moment commits
+  const commits = sweepCommits(session);
+
   const now = new Date().toISOString();
-  const summary = generateSummary(session.clock_in, now, notes);
+  const summary = generateSummary(session.clock_in, now, notes, commits);
 
   db.prepare(
     'UPDATE sessions SET clock_out = ?, summary = ? WHERE id = ?'
@@ -54,7 +59,7 @@ router.post('/clock-out', (_req, res) => {
     'SELECT * FROM sessions WHERE id = ?'
   ).get(session.id) as Session;
 
-  res.json({ ...updated, notes });
+  res.json({ ...updated, notes, commits });
 });
 
 // GET /api/sessions/current
@@ -72,7 +77,11 @@ router.get('/current', (_req, res) => {
     'SELECT * FROM notes WHERE session_id = ? ORDER BY timestamp ASC'
   ).all(session.id) as Note[];
 
-  res.json({ ...session, notes });
+  const commits = db.prepare(
+    'SELECT * FROM commits WHERE session_id = ? ORDER BY timestamp ASC'
+  ).all(session.id) as Commit[];
+
+  res.json({ ...session, notes, commits });
 });
 
 // GET /api/sessions
@@ -85,7 +94,10 @@ router.get('/', (_req, res) => {
     const notes = db.prepare(
       'SELECT * FROM notes WHERE session_id = ? ORDER BY timestamp ASC'
     ).all(s.id) as Note[];
-    return { ...s, notes };
+    const commits = db.prepare(
+      'SELECT * FROM commits WHERE session_id = ? ORDER BY timestamp ASC'
+    ).all(s.id) as Commit[];
+    return { ...s, notes, commits };
   });
 
   res.json(result);
@@ -102,6 +114,7 @@ router.delete('/:id', (req, res) => {
     return;
   }
 
+  db.prepare('DELETE FROM commits WHERE session_id = ?').run(session.id);
   db.prepare('DELETE FROM notes WHERE session_id = ?').run(session.id);
   db.prepare('DELETE FROM sessions WHERE id = ?').run(session.id);
 
@@ -123,10 +136,14 @@ router.get('/:id', (req, res) => {
     'SELECT * FROM notes WHERE session_id = ? ORDER BY timestamp ASC'
   ).all(session.id) as Note[];
 
-  res.json({ ...session, notes });
+  const commits = db.prepare(
+    'SELECT * FROM commits WHERE session_id = ? ORDER BY timestamp ASC'
+  ).all(session.id) as Commit[];
+
+  res.json({ ...session, notes, commits });
 });
 
-function generateSummary(clockIn: string, clockOut: string, notes: Note[]): string {
+function generateSummary(clockIn: string, clockOut: string, notes: Note[], commits: Commit[] = []): string {
   const start = new Date(clockIn);
   const end = new Date(clockOut);
   const ms = end.getTime() - start.getTime();
@@ -137,9 +154,21 @@ function generateSummary(clockIn: string, clockOut: string, notes: Note[]): stri
 
   const lines = [
     `Session: ${duration}`,
-    `${notes.length} note${notes.length !== 1 ? 's' : ''} logged`,
-    '',
   ];
+
+  if (commits.length > 0) {
+    lines.push(`${commits.length} commit${commits.length !== 1 ? 's' : ''}`);
+  }
+  if (notes.length > 0) {
+    lines.push(`${notes.length} note${notes.length !== 1 ? 's' : ''}`);
+  }
+  lines.push('');
+
+  for (const commit of commits) {
+    const short = commit.hash.slice(0, 7);
+    const line = `${short} ${commit.message}`;
+    lines.push(commit.comment ? `${line} — ${commit.comment}` : line);
+  }
 
   for (const note of notes) {
     const time = new Date(note.timestamp).toLocaleTimeString([], {

@@ -14,6 +14,18 @@ export interface Note {
   created_at: string;
 }
 
+export interface Commit {
+  id: number;
+  session_id: number;
+  hash: string;
+  message: string;
+  author: string;
+  timestamp: string;
+  comment: string | null;
+  created_at: string;
+}
+
 export interface SessionWithNotes extends Session {
   notes: Note[];
+  commits: Commit[];
 }

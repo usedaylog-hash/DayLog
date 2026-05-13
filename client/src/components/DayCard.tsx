@@ -46,6 +46,9 @@ export function DayCard({ session, onDelete }: Props) {
       </div>
       <div className={styles.time}>{formatTimeRange(session.clock_in, session.clock_out)}</div>
       {session.summary && <p className={styles.summary}>{session.summary}</p>}
+      {session.commits && session.commits.length > 0 && (
+        <div className={styles.noteCount}>{session.commits.length} commit{session.commits.length !== 1 ? 's' : ''}</div>
+      )}
       {session.notes && session.notes.length > 0 && (
         <div className={styles.noteCount}>{session.notes.length} note{session.notes.length !== 1 ? 's' : ''}</div>
       )}

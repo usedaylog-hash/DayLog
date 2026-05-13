@@ -1,4 +1,4 @@
-import type { Session, Note, TestRun, TestRunDetail } from '../types';
+import type { Session, Note, Commit, TestRun, TestRunDetail } from '../types';
 
 const BASE = '/api';
 
@@ -51,6 +51,17 @@ export const api = {
     return request('/notes', {
       method: 'POST',
       body: JSON.stringify({ content }),
+    });
+  },
+
+  getSessionCommits(): Promise<Commit[]> {
+    return request('/sessions/current/commits');
+  },
+
+  updateCommitComment(id: number, comment: string): Promise<void> {
+    return request(`/commits/${id}/comment`, {
+      method: 'PATCH',
+      body: JSON.stringify({ comment }),
     });
   },
 };
