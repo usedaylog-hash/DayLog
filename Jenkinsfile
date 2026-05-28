@@ -47,7 +47,9 @@ pipeline {
             echo 'DayLog pipeline failed.'
         }
         cleanup {
-            cleanWs()
+            node('') {
+                cleanWs()
+            }
         }
     }
 }
