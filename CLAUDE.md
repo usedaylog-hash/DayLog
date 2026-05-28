@@ -186,7 +186,7 @@ Jenkins-based CI/CD for DayLog. Tracked as DAY-27 through DAY-30.
 
 ```
 DAY-27  Set up Jenkins server for DayLog CI/CD (High) ✅
-  ├── DAY-28  Add linting and type checking to the pipeline (Medium)
+  ├── DAY-28  Add linting and type checking to the pipeline (Medium) ✅
   └── DAY-29  Add test framework (Vitest) and write initial test suite (Medium)
         └── DAY-30  Set up automated deployment pipeline (Low)
               (blocked by both DAY-28 and DAY-29)
@@ -197,9 +197,10 @@ DAY-27  Set up Jenkins server for DayLog CI/CD (High) ✅
 **Jenkinsfile** at repo root — declarative pipeline with 5 stages:
 1. **Install** — `npm ci` in root, `client/`, and `server/`
 2. **Build** — `npm run build` (tsc + vite)
-3. **Lint** — Placeholder (DAY-28)
-4. **Test** — Placeholder (DAY-29)
-5. **Deploy** — Placeholder (DAY-30)
+3. **Lint** — ESLint for client + server
+4. **Typecheck** — `tsc --noEmit` for client + server
+5. **Test** — Placeholder (DAY-29)
+6. **Deploy** — Placeholder (DAY-30)
 
 Post block cleans workspace on every run. No `tools` block needed — Node.js is system-installed.
 
@@ -212,9 +213,16 @@ Post block cleans workspace on every run. No `tools` block needed — Node.js is
 - Pipeline job "Daylog" configured as "Pipeline script from SCM" pointing to `/home/luke/MyCode/src/DayLog`, branch `*/master`
 - Manual trigger only (no polling/webhooks)
 
+### Linting & Type Checking (DAY-28) — Done
+
+**ESLint 9** (flat config) for both client and server:
+- `client/eslint.config.js` — `@eslint/js` recommended + `typescript-eslint` recommended + `eslint-plugin-react-hooks`
+- `server/eslint.config.js` — `@eslint/js` recommended + `typescript-eslint` recommended
+- Scripts: `npm run lint` and `npm run typecheck` in client, server, and root `package.json`
+- Jenkins Lint stage runs both linters; Typecheck stage runs `tsc --noEmit` for both
+
 ### Remaining Scope
 
-- **Linting (DAY-28):** ESLint config for client + server, `npm run lint` and `npm run typecheck` scripts
 - **Testing (DAY-29):** Vitest for both client and server, JUnit XML output for Jenkins reporting, initial test suite covering invoice logic, API client, component rendering
 - **Deployment (DAY-30):** Production build, process management (PM2 or systemd), main-branch-only deploy, rollback mechanism, post-deploy health check
 

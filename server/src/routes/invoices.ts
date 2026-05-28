@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Response } from 'express';
 import PDFDocument from 'pdfkit';
 import { db } from '../db/connection.js';
 
@@ -136,7 +136,7 @@ function getNextInvoiceNumber(): string {
 }
 
 function generatePdf(
-  res: any,
+  res: Response,
   invoice: { invoiceNumber: string; invoiceDate: string; periodStart: string; periodEnd: string },
   config: Record<string, string>,
   items: LineItem[],

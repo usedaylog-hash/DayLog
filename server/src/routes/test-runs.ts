@@ -155,7 +155,7 @@ router.get('/:filename', (req, res) => {
     // Parse skipped tests from lines starting with "  -"
     const skippedTests: string[] = [];
     for (const line of lines) {
-      const skipMatch = line.match(/^  -\s+\d+\s+(.+)$/);
+      const skipMatch = line.match(/^ {2}-\s+\d+\s+(.+)$/);
       if (skipMatch) {
         skippedTests.push(skipMatch[1].trim());
       }
@@ -169,8 +169,8 @@ router.get('/:filename', (req, res) => {
       available: boolean;
     }
     const failedTestDetails: { name: string; error: string; attachments: Attachment[] }[] = [];
-    const errorBlockStart = /^  (\d+)\) (.+)$/;
-    const blockEnd = /^  (Slow test file:|\d+ failed$|\d+ skipped$|\d+ passed)/;
+    const errorBlockStart = /^ {2}(\d+)\) (.+)$/;
+    const blockEnd = /^ {2}(Slow test file:|\d+ failed$|\d+ skipped$|\d+ passed)/;
 
     let i = 0;
     while (i < lines.length) {
@@ -194,6 +194,7 @@ router.get('/:filename', (req, res) => {
     }
 
     // Strip ANSI escape codes from error text
+    // eslint-disable-next-line no-control-regex
     const ansiRegex = /\x1b\[\d+m/g;
     for (const detail of failedTestDetails) {
       detail.error = detail.error.replace(ansiRegex, '');

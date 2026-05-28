@@ -16,8 +16,8 @@ export function runMigrations() {
     try {
       db.exec(sql);
       console.log(`Migration applied: ${file}`);
-    } catch (err: any) {
-      if (err.message?.includes('duplicate column')) {
+    } catch (err) {
+      if (err instanceof Error && err.message?.includes('duplicate column')) {
         console.log(`Migration already applied: ${file}`);
       } else {
         throw err;

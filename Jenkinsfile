@@ -22,7 +22,23 @@ pipeline {
 
         stage('Lint') {
             steps {
-                echo 'Lint stage placeholder — will be implemented in DAY-28'
+                dir('client') {
+                    sh 'npm run lint'
+                }
+                dir('server') {
+                    sh 'npm run lint'
+                }
+            }
+        }
+
+        stage('Typecheck') {
+            steps {
+                dir('client') {
+                    sh 'npm run typecheck'
+                }
+                dir('server') {
+                    sh 'npm run typecheck'
+                }
             }
         }
 

@@ -8,7 +8,9 @@
     "dev:client": "cd client && npm run dev",
     "dev:server": "cd server && npm run dev",
     "build": "cd client && npm run build",
-    "start": "cd server && npm start"
+    "start": "cd server && npm start",
+    "lint": "cd client && npm run lint && cd ../server && npm run lint",
+    "typecheck": "cd client && npm run typecheck && cd ../server && npm run typecheck"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

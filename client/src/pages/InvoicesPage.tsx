@@ -34,8 +34,8 @@ export function InvoicesPage() {
     try {
       const data = await api.previewInvoice(start, end);
       setPreview(data);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load preview');
     } finally {
       setPreviewing(false);
     }
@@ -69,8 +69,8 @@ export function InvoicesPage() {
       const updated = await api.getInvoices();
       setInvoices(updated);
       setPreview(null);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to generate invoice');
     } finally {
       setGenerating(false);
     }
@@ -83,8 +83,8 @@ export function InvoicesPage() {
       setInvoices((prev) => prev.filter((i) => i.id !== id));
       setConfirmDelete(null);
       setToast(`Invoice ${inv?.invoice_number ?? ''} deleted`);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete invoice');
     }
   }
 
