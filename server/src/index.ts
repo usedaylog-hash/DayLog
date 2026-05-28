@@ -8,6 +8,7 @@ import { notesRouter } from './routes/notes.js';
 import { testRunsRouter } from './routes/test-runs.js';
 import { commitsRouter } from './routes/commits.js';
 import { portfolioRouter } from './routes/portfolio.js';
+import { invoicesRouter } from './routes/invoices.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -32,6 +33,7 @@ app.use('/api/notes', notesRouter);
 app.use('/api/test-runs', testRunsRouter);
 app.use('/api', commitsRouter);
 app.use('/api/portfolio', portfolioRouter);
+app.use('/api/invoices', invoicesRouter);
 
 app.listen(PORT, () => {
   console.log(`DayLog server running on http://localhost:${PORT}`);

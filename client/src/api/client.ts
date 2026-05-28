@@ -1,4 +1,4 @@
-import type { Session, Note, Commit, TestRun, TestRunDetail, PortfolioData } from '../types';
+import type { Session, Note, Commit, TestRun, TestRunDetail, PortfolioData, Invoice, InvoicePreview, BiweeklyPeriod } from '../types';
 
 const BASE = '/api';
 
@@ -78,5 +78,36 @@ export const api = {
 
   getPortfolioPdfUrl(): string {
     return `${BASE}/portfolio/pdf`;
+  },
+
+  getInvoices(): Promise<Invoice[]> {
+    return request('/invoices');
+  },
+
+  getInvoicePeriods(): Promise<BiweeklyPeriod[]> {
+    return request('/invoices/periods');
+  },
+
+  getInvoiceConfig(): Promise<Record<string, string>> {
+    return request('/invoices/config');
+  },
+
+  updateInvoiceConfig(config: Record<string, string>): Promise<Record<string, string>> {
+    return request('/invoices/config', {
+      method: 'PUT',
+      body: JSON.stringify(config),
+    });
+  },
+
+  previewInvoice(periodStart: string, periodEnd: string): Promise<InvoicePreview> {
+    return request(`/invoices/preview?periodStart=${periodStart}&periodEnd=${periodEnd}`);
+  },
+
+  deleteInvoice(id: number): Promise<void> {
+    return request(`/invoices/${id}`, { method: 'DELETE' });
+  },
+
+  getInvoicePdfUrl(id: number): string {
+    return `${BASE}/invoices/${id}/pdf`;
   },
 };

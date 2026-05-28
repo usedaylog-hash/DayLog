@@ -3,7 +3,7 @@ import styles from './Toast.module.css';
 
 interface Props {
   message: string;
-  onUndo: () => void;
+  onUndo?: () => void;
   onDismiss: () => void;
   duration?: number;
 }
@@ -24,7 +24,7 @@ export function Toast({ message, onUndo, onDismiss, duration = 5000 }: Props) {
   return (
     <div className={`${styles.toast} ${exiting ? styles.exiting : ''}`}>
       <span>{message}</span>
-      <button className={styles.undoBtn} onClick={onUndo}>Undo</button>
+      {onUndo && <button className={styles.undoBtn} onClick={onUndo}>Undo</button>}
     </div>
   );
 }

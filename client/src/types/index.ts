@@ -74,6 +74,7 @@ export interface PortfolioSession {
   commitCount: number;
   noteCount: number;
   summary: string | null;
+  activity: string;
 }
 
 export interface PortfolioStats {
@@ -89,4 +90,38 @@ export interface PortfolioData {
   stats: PortfolioStats;
   sessions: PortfolioSession[];
   bugs: BugReport[];
+}
+
+export interface Invoice {
+  id: number;
+  invoice_number: string;
+  invoice_date: string;
+  period_start: string;
+  period_end: string;
+  hourly_rate: number;
+  total_hours: number;
+  total_amount: number;
+  created_at: string;
+}
+
+export interface InvoiceLineItem {
+  date: string;
+  location: string;
+  description: string;
+  hours: number;
+  rate: number;
+  amount: number;
+}
+
+export interface InvoicePreview {
+  items: InvoiceLineItem[];
+  totalHours: number;
+  totalAmount: number;
+  hourlyRate: number;
+}
+
+export interface BiweeklyPeriod {
+  start: string;
+  end: string;
+  label: string;
 }

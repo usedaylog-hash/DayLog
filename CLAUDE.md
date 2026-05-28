@@ -24,7 +24,7 @@ DayLog/
 │   └── src/
 │       ├── api/client.ts        # Centralized fetch wrapper
 │       ├── components/          # Reusable components (CSS Modules colocated)
-│       ├── pages/               # TodayPage, HistoryPage, TestRunsPage, TestRunDetailPage, PortfolioPage
+│       ├── pages/               # TodayPage, HistoryPage, TestRunsPage, TestRunDetailPage, PortfolioPage, InvoicesPage
 │       ├── types/index.ts       # Shared TypeScript interfaces
 │       ├── App.tsx              # Router setup
 │       ├── index.css            # Global CSS variables and base styles
@@ -34,8 +34,8 @@ DayLog/
 │       ├── db/
 │       │   ├── connection.ts    # SQLite setup
 │       │   ├── migrate.ts       # Migration runner (auto-applies on startup)
-│       │   └── migrations/      # SQL migration files (001-003)
-│       ├── routes/              # sessions, notes, commits, test-runs, portfolio
+│       │   └── migrations/      # SQL migration files (001-004)
+│       ├── routes/              # sessions, notes, commits, test-runs, portfolio, invoices
 │       └── index.ts             # Express app setup (port 3001)
 └── data/daylog.db               # SQLite database
 ```
@@ -58,11 +58,13 @@ Client proxies API requests to localhost:3001 via Vite config.
 
 ## Database Schema
 
-Three tables, managed by sequential SQL migrations:
+Five tables, managed by sequential SQL migrations:
 
 - **sessions**: `id, clock_in, clock_out, summary, handoff, created_at`
 - **notes**: `id, session_id (FK), content, timestamp, created_at`
 - **commits**: `id, session_id (FK), hash, message, author, timestamp, comment, created_at` (UNIQUE on session_id+hash)
+- **invoices**: `id, invoice_number, invoice_date, period_start, period_end, hourly_rate, total_hours, total_amount, created_at`
+- **invoice_config**: `key, value` (key/value store for contractor/client info, hourly rate)
 
 ---
 
@@ -122,17 +124,50 @@ A "Portfolio" tab aggregates all QA work into a presentable view with PDF export
 
 **Dependency added:** `pdfkit` + `@types/pdfkit` in `server/`
 
-### Outstanding fixes (not yet applied — session interrupted)
+### Portfolio fixes — Done (2026-05-28)
 
-These were reviewed and approved but the write was interrupted before commit:
+| Linear | Description | Status |
+|--------|-------------|--------|
+| DAY-13 | Extract shared `getPortfolioData()` function | Done |
+| DAY-14 | Fix N+1 queries with GROUP BY | Done |
+| DAY-15 | Move activity extraction server-side | Done |
+| DAY-16 | Default FINDING severity to "Info" | Done |
+| DAY-17 | Sort bugs by date descending | Done |
+| DAY-18 | Remove 30-session cap in PDF | Done |
+| DAY-19 | Clean up minor issues | Done |
 
-1. **Extract shared `getPortfolioData()` function** — the `/` and `/pdf` handlers duplicate all the data-gathering logic. Extract into one shared function.
-2. **Fix N+1 queries** — per-session `SELECT COUNT(*)` calls should be a single `GROUP BY session_id` query for commits and notes.
-3. **Move activity extraction server-side** — both server PDF and client parse `summary.split('\n')` to get activity. Add an `activity` field to the API response, remove client-side parsing.
-4. **Default FINDING severity to "Info"** instead of "Medium" — findings without `**Severity:**` are UX observations, not functional bugs.
-5. **Sort bugs by date descending** — most recent work first (currently ascending by filename).
-6. **Remove 30-session cap in PDF** — let pdfkit handle page breaks for all sessions instead of silently dropping the rest.
-7. **Clean up minor issues** — unused `rowY` variable, add page-break checks in bugs section, add mobile table scroll wrapper.
+---
+
+## Invoice Feature (added 2026-05-28)
+
+An "Invoices" tab generates biweekly PDF invoices from DayLog session data.
+
+**What it does:**
+- Biweekly billing periods (Monday through Friday of the second week), anchored on 2026-01-05
+- Line items built from sessions: one row per session with clock-in/out times and commit messages as work descriptions
+- Configurable contractor/client info and hourly rate (stored in `invoice_config` table)
+- Invoice numbering: `INV-YYYY-NNN`, auto-incremented per year
+- PDF generation via pdfkit with dark navy header, contractor info, bill-to, rate section, services table, totals
+- Preview before generating, delete with confirmation toast
+
+**Key files:**
+- `server/src/routes/invoices.ts` — All endpoints: list, config CRUD, periods, preview, generate PDF, re-download, delete
+- `server/src/db/migrations/004-invoices.sql` — `invoices` + `invoice_config` tables
+- `client/src/pages/InvoicesPage.tsx` + `.module.css`
+
+**Endpoints:**
+- `GET /api/invoices` — List all invoices
+- `GET /api/invoices/periods` — Get last 6 biweekly periods
+- `GET /api/invoices/config` — Get invoice config
+- `PUT /api/invoices/config` — Update invoice config
+- `GET /api/invoices/preview?periodStart=&periodEnd=` — Preview line items
+- `POST /api/invoices/generate` — Generate PDF + save to DB
+- `GET /api/invoices/:id/pdf` — Re-download past invoice
+- `DELETE /api/invoices/:id` — Delete invoice
+
+**Config:** Billed to Floburn Inc., hourly rate $20/hr. Config seeded with defaults in migration.
+
+**Toast component:** Made `onUndo` optional in `Toast.tsx` so it can be reused as a simple confirmation toast (used for invoice deletion).
 
 ### Linear MCP server
 
