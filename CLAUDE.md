@@ -169,7 +169,88 @@ An "Invoices" tab generates biweekly PDF invoices from DayLog session data.
 
 **Toast component:** Made `onUndo` optional in `Toast.tsx` so it can be reused as a simple confirmation toast (used for invoice deletion).
 
-### Linear MCP server
+---
+
+## Next Session Plan
+
+**Priority 1:** CI/CD pipeline (DAY-27 through DAY-30) — Jenkins setup, linting, tests, deployment.
+**Priority 2:** Invoice enhancements (DAY-20 through DAY-26) — settings UI, payment tracking, tax estimates.
+
+---
+
+## CI/CD Pipeline
+
+Jenkins-based CI/CD for DayLog. Tracked as DAY-27 through DAY-30.
+
+### Linear Issues & Dependency Chain
+
+```
+DAY-27  Set up Jenkins server for DayLog CI/CD (High) ✅
+  ├── DAY-28  Add linting and type checking to the pipeline (Medium)
+  └── DAY-29  Add test framework (Vitest) and write initial test suite (Medium)
+        └── DAY-30  Set up automated deployment pipeline (Low)
+              (blocked by both DAY-28 and DAY-29)
+```
+
+### Jenkins Setup (DAY-27) — Done
+
+**Jenkinsfile** at repo root — declarative pipeline with 5 stages:
+1. **Install** — `npm ci` in root, `client/`, and `server/`
+2. **Build** — `npm run build` (tsc + vite)
+3. **Lint** — Placeholder (DAY-28)
+4. **Test** — Placeholder (DAY-29)
+5. **Deploy** — Placeholder (DAY-30)
+
+Post block cleans workspace on every run. No `tools` block needed — Node.js is system-installed.
+
+**Jenkins server setup** (manual):
+- Java 17 + Jenkins installed via apt, running on `http://localhost:8080`
+- Jenkins user added to `luke` group for repo access
+- Pipeline job configured as "Pipeline script from SCM" pointing to `/home/luke/MyCode/src/DayLog`, branch `*/master`
+- Manual trigger only (no polling/webhooks)
+
+### Remaining Scope
+
+- **Linting (DAY-28):** ESLint config for client + server, `npm run lint` and `npm run typecheck` scripts
+- **Testing (DAY-29):** Vitest for both client and server, JUnit XML output for Jenkins reporting, initial test suite covering invoice logic, API client, component rendering
+- **Deployment (DAY-30):** Production build, process management (PM2 or systemd), main-branch-only deploy, rollback mechanism, post-deploy health check
+
+---
+
+## Invoice Settings, Payment Tracking & Tax Estimates (upcoming)
+
+Second priority after CI/CD. All tracked in Linear as DAY-20 through DAY-26.
+
+**Three gaps being addressed:**
+1. **Config Settings UI** — No way to edit contractor/client info without hitting the API directly
+2. **Payment Tracking** — No way to mark invoices as paid or track payment dates
+3. **Quarterly Tax Estimates** — No visibility into quarterly earnings for estimated tax payments
+
+### Linear Issues & Dependency Chain
+
+```
+DAY-20  Migration: paid_date column + tax_rate config seed (005-invoice-paid.sql)
+  ├── DAY-21  Server: PATCH /:id/paid endpoint (mark paid/unpaid)
+  └── DAY-22  Server: GET /tax-summary endpoint (quarterly breakdown)
+        └── DAY-23  Client: Types + API methods (Invoice.paid_date, TaxSummary, QuarterData)
+              ├── DAY-24  UI: Invoice config settings section (two-column form grid)
+              ├── DAY-25  UI: Payment status column with paid/unpaid badge toggle
+              └── DAY-26  UI: Tax overview section with quarterly breakdown + stats grid
+```
+
+### Implementation Notes
+
+- **Migration** adds `paid_date TEXT` to `invoices` table and seeds `tax_rate = '30'` in `invoice_config`. The migration runner in `migrate.ts` catches "duplicate column" errors for idempotency.
+- **Settings section** goes at the bottom of InvoicesPage — two-column grid (contractor left, client right), with hourly rate (`$` prefix) and tax rate (`%` suffix).
+- **Payment status** adds a Status column to Past Invoices table. Unpaid = amber badge (click to mark paid with today's date), Paid = green badge with date (click to unmark with confirmation).
+- **Tax overview** reuses the stats grid pattern from PortfolioPage. Year dropdown, YTD stats cards, quarter-by-quarter table. Tax rate configurable via settings (default 30% covers ~15.3% SE + ~15% federal).
+- **New endpoints:** `PATCH /api/invoices/:id/paid`, `GET /api/invoices/tax-summary?year=`
+- **New types:** `TaxSummary`, `QuarterData` in `client/src/types/index.ts`
+- **New API methods:** `markInvoicePaid()`, `markInvoiceUnpaid()`, `getTaxSummary()` in `client/src/api/client.ts`
+
+---
+
+## Linear MCP Server
 
 Added Linear MCP server to Claude Code config (local scope):
 ```
