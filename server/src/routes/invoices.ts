@@ -16,6 +16,7 @@ interface InvoiceRow {
   total_hours: number;
   total_amount: number;
   created_at: string;
+  paid_date: string | null;
 }
 
 interface SessionRow {
@@ -287,6 +288,69 @@ router.get('/preview', (req, res) => {
   }
 });
 
+// GET /api/invoices/tax-summary — quarterly tax breakdown
+router.get('/tax-summary', (req, res) => {
+  try {
+    const year = parseInt(req.query.year as string) || new Date().getFullYear();
+    const config = getConfig();
+    const taxRate = parseFloat(config.tax_rate) || 30;
+
+    const invoices = db.prepare(
+      `SELECT total_hours, total_amount, paid_date, period_start
+       FROM invoices
+       WHERE period_start >= ? AND period_start < ?`
+    ).all(`${year}-01-01`, `${year + 1}-01-01`) as (Pick<InvoiceRow, 'total_hours' | 'total_amount' | 'paid_date'> & { period_start: string })[];
+
+    const quarterLabels = ['Q1 (Jan–Mar)', 'Q2 (Apr–Jun)', 'Q3 (Jul–Sep)', 'Q4 (Oct–Dec)'];
+    const quarters = quarterLabels.map((label, i) => ({
+      quarter: i + 1,
+      label,
+      hours: 0,
+      earned: 0,
+      paid: 0,
+      unpaid: 0,
+      estimatedTax: 0,
+    }));
+
+    for (const inv of invoices) {
+      const month = new Date(inv.period_start).getMonth(); // 0-based
+      const qi = Math.floor(month / 3);
+      const q = quarters[qi];
+      q.hours += inv.total_hours;
+      q.earned += inv.total_amount;
+      if (inv.paid_date) {
+        q.paid += inv.total_amount;
+      } else {
+        q.unpaid += inv.total_amount;
+      }
+    }
+
+    // Round and compute tax
+    const ytd = { hours: 0, earned: 0, paid: 0, unpaid: 0, estimatedTax: 0 };
+    for (const q of quarters) {
+      q.hours = Math.round(q.hours * 100) / 100;
+      q.earned = Math.round(q.earned * 100) / 100;
+      q.paid = Math.round(q.paid * 100) / 100;
+      q.unpaid = Math.round(q.unpaid * 100) / 100;
+      q.estimatedTax = Math.round(q.earned * (taxRate / 100) * 100) / 100;
+      ytd.hours += q.hours;
+      ytd.earned += q.earned;
+      ytd.paid += q.paid;
+      ytd.unpaid += q.unpaid;
+    }
+    ytd.hours = Math.round(ytd.hours * 100) / 100;
+    ytd.earned = Math.round(ytd.earned * 100) / 100;
+    ytd.paid = Math.round(ytd.paid * 100) / 100;
+    ytd.unpaid = Math.round(ytd.unpaid * 100) / 100;
+    ytd.estimatedTax = Math.round(ytd.earned * (taxRate / 100) * 100) / 100;
+
+    res.json({ year, taxRate, quarters, ytd });
+  } catch (err) {
+    console.error('Failed to get tax summary:', err);
+    res.status(500).json({ error: 'Could not get tax summary' });
+  }
+});
+
 // POST /api/invoices/generate — generate invoice PDF + save to DB
 router.post('/generate', (req, res) => {
   try {
@@ -352,6 +416,23 @@ router.get('/:id/pdf', (req, res) => {
     if (!res.headersSent) {
       res.status(500).json({ error: 'Could not generate PDF' });
     }
+  }
+});
+
+// PATCH /api/invoices/:id/paid — mark invoice paid or unpaid
+router.patch('/:id/paid', (req, res) => {
+  try {
+    const { paid_date } = req.body as { paid_date: string | null };
+    const result = db.prepare('UPDATE invoices SET paid_date = ? WHERE id = ?').run(paid_date, req.params.id);
+    if (result.changes === 0) {
+      res.status(404).json({ error: 'Invoice not found' });
+      return;
+    }
+    const invoice = db.prepare('SELECT * FROM invoices WHERE id = ?').get(req.params.id) as InvoiceRow;
+    res.json(invoice);
+  } catch (err) {
+    console.error('Failed to update invoice payment status:', err);
+    res.status(500).json({ error: 'Could not update payment status' });
   }
 });
 

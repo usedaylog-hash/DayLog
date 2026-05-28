@@ -102,6 +102,24 @@ export interface Invoice {
   total_hours: number;
   total_amount: number;
   created_at: string;
+  paid_date: string | null;
+}
+
+export interface QuarterData {
+  quarter: number;
+  label: string;
+  hours: number;
+  earned: number;
+  paid: number;
+  unpaid: number;
+  estimatedTax: number;
+}
+
+export interface TaxSummary {
+  year: number;
+  taxRate: number;
+  quarters: QuarterData[];
+  ytd: Omit<QuarterData, 'quarter' | 'label'>;
 }
 
 export interface InvoiceLineItem {

@@ -164,6 +164,8 @@ An "Invoices" tab generates biweekly PDF invoices from DayLog session data.
 - `POST /api/invoices/generate` — Generate PDF + save to DB
 - `GET /api/invoices/:id/pdf` — Re-download past invoice
 - `DELETE /api/invoices/:id` — Delete invoice
+- `PATCH /api/invoices/:id/paid` — Mark invoice paid/unpaid
+- `GET /api/invoices/tax-summary?year=` — Quarterly tax breakdown
 
 **Config:** Billed to Floburn Inc., hourly rate $20/hr. Config seeded with defaults in migration.
 
@@ -173,7 +175,7 @@ An "Invoices" tab generates biweekly PDF invoices from DayLog session data.
 
 ## Next Session Plan
 
-**Priority 1:** Invoice enhancements (DAY-20 through DAY-26) — settings UI, payment tracking, tax estimates.
+All planned features (DAY-20 through DAY-26) are complete. No pending work items.
 
 ---
 
@@ -236,33 +238,33 @@ CI/CD pipeline is complete (DAY-27 through DAY-29). Deployment (DAY-30) was canc
 
 ---
 
-## Invoice Settings, Payment Tracking & Tax Estimates (upcoming)
+## Invoice Settings, Payment Tracking & Tax Estimates (DAY-20 through DAY-26) — Done
 
-Second priority after CI/CD. All tracked in Linear as DAY-20 through DAY-26.
+All tracked in Linear as DAY-20 through DAY-26.
 
-**Three gaps being addressed:**
-1. **Config Settings UI** — No way to edit contractor/client info without hitting the API directly
-2. **Payment Tracking** — No way to mark invoices as paid or track payment dates
-3. **Quarterly Tax Estimates** — No visibility into quarterly earnings for estimated tax payments
+**Three features added:**
+1. **Config Settings UI** — Edit contractor/client info and rates directly in the Invoices tab
+2. **Payment Tracking** — Mark invoices as paid/unpaid with date tracking
+3. **Quarterly Tax Estimates** — Year-over-year quarterly earnings breakdown with estimated tax
 
 ### Linear Issues & Dependency Chain
 
 ```
-DAY-20  Migration: paid_date column + tax_rate config seed (005-invoice-paid.sql)
-  ├── DAY-21  Server: PATCH /:id/paid endpoint (mark paid/unpaid)
-  └── DAY-22  Server: GET /tax-summary endpoint (quarterly breakdown)
-        └── DAY-23  Client: Types + API methods (Invoice.paid_date, TaxSummary, QuarterData)
-              ├── DAY-24  UI: Invoice config settings section (two-column form grid)
-              ├── DAY-25  UI: Payment status column with paid/unpaid badge toggle
-              └── DAY-26  UI: Tax overview section with quarterly breakdown + stats grid
+DAY-20  Migration: paid_date column + tax_rate config seed (005-invoice-paid.sql) ✅
+  ├── DAY-21  Server: PATCH /:id/paid endpoint (mark paid/unpaid) ✅
+  └── DAY-22  Server: GET /tax-summary endpoint (quarterly breakdown) ✅
+        └── DAY-23  Client: Types + API methods (Invoice.paid_date, TaxSummary, QuarterData) ✅
+              ├── DAY-24  UI: Invoice config settings section (two-column form grid) ✅
+              ├── DAY-25  UI: Payment status column with paid/unpaid badge toggle ✅
+              └── DAY-26  UI: Tax overview section with quarterly breakdown + stats grid ✅
 ```
 
-### Implementation Notes
+### Implementation Details
 
-- **Migration** adds `paid_date TEXT` to `invoices` table and seeds `tax_rate = '30'` in `invoice_config`. The migration runner in `migrate.ts` catches "duplicate column" errors for idempotency.
-- **Settings section** goes at the bottom of InvoicesPage — two-column grid (contractor left, client right), with hourly rate (`$` prefix) and tax rate (`%` suffix).
+- **Migration** (`005-invoice-paid.sql`): Adds `paid_date TEXT` to `invoices` table and seeds `tax_rate = '30'` in `invoice_config`. The migration runner in `migrate.ts` catches "duplicate column" errors for idempotency.
+- **Settings section** at the bottom of InvoicesPage — two-column grid (contractor left, client right), with hourly rate (`$` prefix) and tax rate (`%` suffix). Save button calls `updateInvoiceConfig()`.
 - **Payment status** adds a Status column to Past Invoices table. Unpaid = amber badge (click to mark paid with today's date), Paid = green badge with date (click to unmark with confirmation).
-- **Tax overview** reuses the stats grid pattern from PortfolioPage. Year dropdown, YTD stats cards, quarter-by-quarter table. Tax rate configurable via settings (default 30% covers ~15.3% SE + ~15% federal).
+- **Tax overview** section between Past Invoices and Settings. Year dropdown (current + previous year), 3-card stats grid (YTD Earned, YTD Est. Tax, Outstanding), quarter-by-quarter table. Tax rate configurable via settings (default 30% covers ~15.3% SE + ~15% federal).
 - **New endpoints:** `PATCH /api/invoices/:id/paid`, `GET /api/invoices/tax-summary?year=`
 - **New types:** `TaxSummary`, `QuarterData` in `client/src/types/index.ts`
 - **New API methods:** `markInvoicePaid()`, `markInvoiceUnpaid()`, `getTaxSummary()` in `client/src/api/client.ts`

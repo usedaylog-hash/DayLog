@@ -1,4 +1,4 @@
-import type { Session, Note, Commit, TestRun, TestRunDetail, PortfolioData, Invoice, InvoicePreview, BiweeklyPeriod } from '../types';
+import type { Session, Note, Commit, TestRun, TestRunDetail, PortfolioData, Invoice, InvoicePreview, BiweeklyPeriod, TaxSummary } from '../types';
 
 const BASE = '/api';
 
@@ -109,5 +109,23 @@ export const api = {
 
   getInvoicePdfUrl(id: number): string {
     return `${BASE}/invoices/${id}/pdf`;
+  },
+
+  markInvoicePaid(id: number, paidDate: string): Promise<Invoice> {
+    return request(`/invoices/${id}/paid`, {
+      method: 'PATCH',
+      body: JSON.stringify({ paid_date: paidDate }),
+    });
+  },
+
+  markInvoiceUnpaid(id: number): Promise<Invoice> {
+    return request(`/invoices/${id}/paid`, {
+      method: 'PATCH',
+      body: JSON.stringify({ paid_date: null }),
+    });
+  },
+
+  getTaxSummary(year: number): Promise<TaxSummary> {
+    return request(`/invoices/tax-summary?year=${year}`);
   },
 };
