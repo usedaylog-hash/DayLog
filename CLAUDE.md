@@ -173,8 +173,7 @@ An "Invoices" tab generates biweekly PDF invoices from DayLog session data.
 
 ## Next Session Plan
 
-**Priority 1:** CI/CD pipeline (DAY-28 through DAY-30) — linting, tests, deployment.
-**Priority 2:** Invoice enhancements (DAY-20 through DAY-26) — settings UI, payment tracking, tax estimates.
+**Priority 1:** Invoice enhancements (DAY-20 through DAY-26) — settings UI, payment tracking, tax estimates.
 
 ---
 
@@ -188,8 +187,7 @@ Jenkins-based CI/CD for DayLog. Tracked as DAY-27 through DAY-30.
 DAY-27  Set up Jenkins server for DayLog CI/CD (High) ✅
   ├── DAY-28  Add linting and type checking to the pipeline (Medium) ✅
   └── DAY-29  Add test framework (Vitest) and write initial test suite (Medium) ✅
-        └── DAY-30  Set up automated deployment pipeline (Low)
-              (blocked by both DAY-28 and DAY-29)
+        └── DAY-30  Set up automated deployment pipeline (Low) ✗ Canceled
 ```
 
 ### Jenkins Setup (DAY-27) — Done
@@ -200,7 +198,7 @@ DAY-27  Set up Jenkins server for DayLog CI/CD (High) ✅
 3. **Lint** — ESLint for client + server
 4. **Typecheck** — `tsc --noEmit` for client + server
 5. **Test** — Vitest for client + server with JUnit XML output (DAY-29)
-6. **Deploy** — Placeholder (DAY-30)
+6. **Deploy** — Removed (DAY-30 canceled)
 
 Post block cleans workspace on every run. No `tools` block needed — Node.js is system-installed.
 
@@ -234,9 +232,7 @@ Post block cleans workspace on every run. No `tools` block needed — Node.js is
 - Test files: `server/src/utils/*.test.ts` (~40 tests) + `client/src/api/client.test.ts` (~20 tests)
 - Jenkins Test stage runs `CI=true npm test` in both dirs; JUnit results collected via `junit` post step
 
-### Remaining Scope
-
-- **Deployment (DAY-30):** Production build, process management (PM2 or systemd), main-branch-only deploy, rollback mechanism, post-deploy health check
+CI/CD pipeline is complete (DAY-27 through DAY-29). Deployment (DAY-30) was canceled — no auto-deploy needed.
 
 ---
 
