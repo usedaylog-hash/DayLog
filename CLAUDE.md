@@ -173,7 +173,7 @@ An "Invoices" tab generates biweekly PDF invoices from DayLog session data.
 
 ## Next Session Plan
 
-**Priority 1:** CI/CD pipeline (DAY-27 through DAY-30) — Jenkins setup, linting, tests, deployment.
+**Priority 1:** CI/CD pipeline (DAY-28 through DAY-30) — linting, tests, deployment.
 **Priority 2:** Invoice enhancements (DAY-20 through DAY-26) — settings UI, payment tracking, tax estimates.
 
 ---
@@ -203,10 +203,13 @@ DAY-27  Set up Jenkins server for DayLog CI/CD (High) ✅
 
 Post block cleans workspace on every run. No `tools` block needed — Node.js is system-installed.
 
-**Jenkins server setup** (manual):
-- Java 17 + Jenkins installed via apt, running on `http://localhost:8080`
-- Jenkins user added to `luke` group for repo access
-- Pipeline job configured as "Pipeline script from SCM" pointing to `/home/luke/MyCode/src/DayLog`, branch `*/master`
+**Jenkins server setup:**
+- Jenkins 2.555.2 installed via apt, running on `http://localhost:8080`
+- Requires Java 21+ (openjdk-21-jre) — Java 17 is too old for this version
+- Jenkins user added to `luke` group for repo access (`sudo usermod -aG luke jenkins`)
+- Safe directory configured: `sudo -u jenkins git config --global --add safe.directory /home/luke/MyCode/src/DayLog` (and `.git`)
+- Local checkout enabled via systemd override: `sudo systemctl edit jenkins` → `Environment="JAVA_OPTS=-Dhudson.plugins.git.GitSCM.ALLOW_LOCAL_CHECKOUT=true"`
+- Pipeline job "Daylog" configured as "Pipeline script from SCM" pointing to `/home/luke/MyCode/src/DayLog`, branch `*/master`
 - Manual trigger only (no polling/webhooks)
 
 ### Remaining Scope
