@@ -7,6 +7,7 @@ import { sessionsRouter } from './routes/sessions.js';
 import { notesRouter } from './routes/notes.js';
 import { testRunsRouter } from './routes/test-runs.js';
 import { commitsRouter } from './routes/commits.js';
+import { portfolioRouter } from './routes/portfolio.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -30,6 +31,7 @@ app.use('/api/sessions', sessionsRouter);
 app.use('/api/notes', notesRouter);
 app.use('/api/test-runs', testRunsRouter);
 app.use('/api', commitsRouter);
+app.use('/api/portfolio', portfolioRouter);
 
 app.listen(PORT, () => {
   console.log(`DayLog server running on http://localhost:${PORT}`);

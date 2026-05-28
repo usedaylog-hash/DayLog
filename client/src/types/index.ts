@@ -55,3 +55,38 @@ export interface TestRunDetail extends TestRun {
   failedTestDetails: FailedTestDetail[];
   skippedTests: string[];
 }
+
+export interface BugReport {
+  filename: string;
+  title: string;
+  date: string;
+  severity: string;
+  summary: string;
+  featureArea: string;
+  environment: string;
+  reporter: string;
+}
+
+export interface PortfolioSession {
+  id: number;
+  date: string;
+  duration: string;
+  commitCount: number;
+  noteCount: number;
+  summary: string | null;
+}
+
+export interface PortfolioStats {
+  totalHours: string;
+  sessionCount: number;
+  commitCount: number;
+  bugsFound: number;
+  testRuns: number;
+  passRate: number;
+}
+
+export interface PortfolioData {
+  stats: PortfolioStats;
+  sessions: PortfolioSession[];
+  bugs: BugReport[];
+}

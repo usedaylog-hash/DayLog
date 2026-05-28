@@ -1,4 +1,4 @@
-import type { Session, Note, Commit, TestRun, TestRunDetail } from '../types';
+import type { Session, Note, Commit, TestRun, TestRunDetail, PortfolioData } from '../types';
 
 const BASE = '/api';
 
@@ -70,5 +70,13 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify({ comment }),
     });
+  },
+
+  getPortfolio(): Promise<PortfolioData> {
+    return request('/portfolio');
+  },
+
+  getPortfolioPdfUrl(): string {
+    return `${BASE}/portfolio/pdf`;
   },
 };
