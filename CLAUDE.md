@@ -187,7 +187,7 @@ Jenkins-based CI/CD for DayLog. Tracked as DAY-27 through DAY-30.
 ```
 DAY-27  Set up Jenkins server for DayLog CI/CD (High) ✅
   ├── DAY-28  Add linting and type checking to the pipeline (Medium) ✅
-  └── DAY-29  Add test framework (Vitest) and write initial test suite (Medium)
+  └── DAY-29  Add test framework (Vitest) and write initial test suite (Medium) ✅
         └── DAY-30  Set up automated deployment pipeline (Low)
               (blocked by both DAY-28 and DAY-29)
 ```
@@ -199,7 +199,7 @@ DAY-27  Set up Jenkins server for DayLog CI/CD (High) ✅
 2. **Build** — `npm run build` (tsc + vite)
 3. **Lint** — ESLint for client + server
 4. **Typecheck** — `tsc --noEmit` for client + server
-5. **Test** — Placeholder (DAY-29)
+5. **Test** — Vitest for client + server with JUnit XML output (DAY-29)
 6. **Deploy** — Placeholder (DAY-30)
 
 Post block cleans workspace on every run. No `tools` block needed — Node.js is system-installed.
@@ -221,9 +221,21 @@ Post block cleans workspace on every run. No `tools` block needed — Node.js is
 - Scripts: `npm run lint` and `npm run typecheck` in client, server, and root `package.json`
 - Jenkins Lint stage runs both linters; Typecheck stage runs `tsc --noEmit` for both
 
+### Testing (DAY-29) — Done
+
+**Vitest** for both client and server:
+- `server/vitest.config.ts` + `client/vitest.config.ts` — globals enabled, JUnit XML reporter when `CI=true`
+- Scripts: `npm test` (vitest run) and `npm test:watch` (vitest) in client, server, and root
+- Pure business logic extracted to `server/src/utils/` for testability:
+  - `invoice-utils.ts` — `getBiweeklyPeriods()`, `formatTime()`, period constants
+  - `session-utils.ts` — `generateSummary()`, `generateHandoff()`
+  - `portfolio-utils.ts` — `formatDuration()`, `formatDurationMs()`, `extractActivity()`, `parseBugContent()`
+- Route files updated to import from utils (no behavior changes)
+- Test files: `server/src/utils/*.test.ts` (~40 tests) + `client/src/api/client.test.ts` (~20 tests)
+- Jenkins Test stage runs `CI=true npm test` in both dirs; JUnit results collected via `junit` post step
+
 ### Remaining Scope
 
-- **Testing (DAY-29):** Vitest for both client and server, JUnit XML output for Jenkins reporting, initial test suite covering invoice logic, API client, component rendering
 - **Deployment (DAY-30):** Production build, process management (PM2 or systemd), main-branch-only deploy, rollback mechanism, post-deploy health check
 
 ---

@@ -10,7 +10,8 @@
     "build": "cd client && npm run build",
     "start": "cd server && npm start",
     "lint": "cd client && npm run lint && cd ../server && npm run lint",
-    "typecheck": "cd client && npm run typecheck && cd ../server && npm run typecheck"
+    "typecheck": "cd client && npm run typecheck && cd ../server && npm run typecheck",
+    "test": "cd server && npm test && cd ../client && npm test"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

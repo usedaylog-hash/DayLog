@@ -44,7 +44,17 @@ pipeline {
 
         stage('Test') {
             steps {
-                echo 'Test stage placeholder — will be implemented in DAY-29'
+                dir('server') {
+                    sh 'CI=true npm test'
+                }
+                dir('client') {
+                    sh 'CI=true npm test'
+                }
+            }
+            post {
+                always {
+                    junit testResults: '**/test-results/junit.xml', allowEmptyResults: true
+                }
             }
         }
 
