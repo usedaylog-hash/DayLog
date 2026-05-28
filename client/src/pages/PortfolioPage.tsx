@@ -28,6 +28,7 @@ export function PortfolioPage() {
     const s = severity.toLowerCase();
     if (s === 'high' || s === 'critical') return styles.badgeHigh;
     if (s === 'low') return styles.badgeLow;
+    if (s === 'info') return styles.badgeInfo;
     return styles.badgeMedium;
   }
 
@@ -84,64 +85,63 @@ export function PortfolioPage() {
       </div>
 
       {tab === 'sessions' && (
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Duration</th>
-              <th>Commits</th>
-              <th>Notes</th>
-              <th>Activity</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sessions.map((s) => {
-              const activity = s.summary
-                ? s.summary.split('\n').filter((l) => l.trim() && !l.startsWith('Session:'))[0] || ''
-                : '';
-              return (
+        <div className={styles.tableScroll}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Duration</th>
+                <th>Commits</th>
+                <th>Notes</th>
+                <th>Activity</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sessions.map((s) => (
                 <tr key={s.id}>
                   <td>{new Date(s.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
                   <td>{s.duration}</td>
                   <td>{s.commitCount}</td>
                   <td>{s.noteCount}</td>
-                  <td className={styles.activityCell}>{activity}</td>
+                  <td className={styles.activityCell}>{s.activity}</td>
                 </tr>
-              );
-            })}
-            {sessions.length === 0 && (
-              <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--color-text-muted)' }}>No sessions recorded yet.</td></tr>
-            )}
-          </tbody>
-        </table>
+              ))}
+              {sessions.length === 0 && (
+                <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--color-text-muted)' }}>No sessions recorded yet.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       )}
 
       {tab === 'bugs' && (
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Title</th>
-              <th>Severity</th>
-              <th>Feature Area</th>
-              <th>Environment</th>
-            </tr>
-          </thead>
-          <tbody>
-            {bugs.map((bug) => (
-              <tr key={bug.filename}>
-                <td>{bug.date}</td>
-                <td>{bug.title}</td>
-                <td><span className={`${styles.badge} ${severityClass(bug.severity)}`}>{bug.severity}</span></td>
-                <td>{bug.featureArea}</td>
-                <td>{bug.environment || '—'}</td>
+        <div className={styles.tableScroll}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Title</th>
+                <th>Severity</th>
+                <th>Feature Area</th>
+                <th>Environment</th>
               </tr>
-            ))}
-            {bugs.length === 0 && (
-              <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--color-text-muted)' }}>No bugs reported yet.</td></tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {bugs.map((bug) => (
+                <tr key={bug.filename}>
+                  <td>{bug.date}</td>
+                  <td>{bug.title}</td>
+                  <td><span className={`${styles.badge} ${severityClass(bug.severity)}`}>{bug.severity}</span></td>
+                  <td>{bug.featureArea}</td>
+                  <td>{bug.environment || '—'}</td>
+                </tr>
+              ))}
+              {bugs.length === 0 && (
+                <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--color-text-muted)' }}>No bugs reported yet.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

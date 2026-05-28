@@ -30,6 +30,7 @@ interface PortfolioSession {
   commitCount: number;
   noteCount: number;
   summary: string | null;
+  activity: string;
 }
 
 interface TestRunSummary {
@@ -38,6 +39,19 @@ interface TestRunSummary {
   failed: number;
   skipped: number;
   runCount: number;
+}
+
+interface PortfolioData {
+  stats: {
+    totalHours: string;
+    sessionCount: number;
+    commitCount: number;
+    bugsFound: number;
+    testRuns: number;
+    passRate: number;
+  };
+  sessions: PortfolioSession[];
+  bugs: BugReport[];
 }
 
 function parseBugFile(filepath: string, filename: string): BugReport | null {
@@ -52,9 +66,9 @@ function parseBugFile(filepath: string, filename: string): BugReport | null {
     const dateMatch = content.match(/\*\*Date:\*\*\s*(.+)/);
     const date = dateMatch ? dateMatch[1].trim() : '';
 
-    // Extract severity
+    // Extract severity — default to Info for findings without explicit severity
     const severityMatch = content.match(/\*\*Severity:\*\*\s*(.+)/i);
-    const severity = severityMatch ? severityMatch[1].trim() : 'Medium';
+    const severity = severityMatch ? severityMatch[1].trim() : 'Info';
 
     // Extract summary from Summary section
     const summaryMatch = content.match(/###?\s*Summary\s*\n\n(.+?)(?:\n\n|$)/s);
@@ -69,13 +83,10 @@ function parseBugFile(filepath: string, filename: string): BugReport | null {
     const reporter = reporterMatch ? reporterMatch[1].trim() : 'Luke';
 
     // Derive feature area from filename
-    // e.g. BUG-2026-02-11-edit-fuel-record-api-error.md -> "Fuel Record"
-    // FINDING-2026-04-21-settings-silent-validation.md -> "Settings"
     const slugMatch = filename.match(/^(?:BUG|FINDING)-\d{4}-\d{2}-\d{2}-(.+)\.md$/);
     let featureArea = 'General';
     if (slugMatch) {
       const slug = slugMatch[1];
-      // Map common slug patterns to feature areas
       const areaMap: [RegExp, string][] = [
         [/^edit-fuel/, 'Fuel Records'],
         [/^fuel/, 'Fuel Records'],
@@ -97,7 +108,6 @@ function parseBugFile(filepath: string, filename: string): BugReport | null {
         }
       }
       if (featureArea === 'General') {
-        // Fallback: capitalize first word of slug
         featureArea = slug.split('-')[0].charAt(0).toUpperCase() + slug.split('-')[0].slice(1);
       }
     }
@@ -163,75 +173,95 @@ function formatDurationMs(ms: number): string {
   return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
 }
 
+function extractActivity(summary: string | null): string {
+  if (!summary) return '';
+  return summary.split('\n').filter((l) => l.trim() && !l.startsWith('Session:'))[0] || '';
+}
+
+function getPortfolioData(): PortfolioData {
+  // Sessions from DB
+  const sessions = db.prepare(
+    'SELECT * FROM sessions WHERE clock_out IS NOT NULL ORDER BY clock_in DESC'
+  ).all() as Array<{ id: number; clock_in: string; clock_out: string; summary: string | null }>;
+
+  const totalCommits = (db.prepare(
+    'SELECT COUNT(*) as count FROM commits'
+  ).get() as { count: number }).count;
+
+  // Batch counts with GROUP BY instead of N+1 queries
+  const commitCounts = new Map<number, number>();
+  const commitRows = db.prepare(
+    'SELECT session_id, COUNT(*) as count FROM commits GROUP BY session_id'
+  ).all() as Array<{ session_id: number; count: number }>;
+  for (const row of commitRows) {
+    commitCounts.set(row.session_id, row.count);
+  }
+
+  const noteCounts = new Map<number, number>();
+  const noteRows = db.prepare(
+    'SELECT session_id, COUNT(*) as count FROM notes GROUP BY session_id'
+  ).all() as Array<{ session_id: number; count: number }>;
+  for (const row of noteRows) {
+    noteCounts.set(row.session_id, row.count);
+  }
+
+  let totalMs = 0;
+  const portfolioSessions: PortfolioSession[] = sessions.map((s) => {
+    const ms = new Date(s.clock_out).getTime() - new Date(s.clock_in).getTime();
+    totalMs += ms;
+
+    return {
+      id: s.id,
+      date: s.clock_in,
+      duration: formatDuration(s.clock_in, s.clock_out),
+      commitCount: commitCounts.get(s.id) || 0,
+      noteCount: noteCounts.get(s.id) || 0,
+      summary: s.summary,
+      activity: extractActivity(s.summary),
+    };
+  });
+
+  // Parse bug reports — sorted descending (most recent first)
+  const bugs: BugReport[] = [];
+  try {
+    const bugFiles = fs.readdirSync(BUGS_DIR)
+      .filter((f) => (f.startsWith('BUG-') || f.startsWith('FINDING-')) && f.endsWith('.md'))
+      .sort()
+      .reverse();
+
+    for (const file of bugFiles) {
+      const bug = parseBugFile(path.join(BUGS_DIR, file), file);
+      if (bug) bugs.push(bug);
+    }
+  } catch {
+    // Bugs dir may not exist
+  }
+
+  // Test run stats
+  const testStats = getTestRunStats();
+  const passRate = testStats.total > 0
+    ? Math.round((testStats.passed / testStats.total) * 100)
+    : 0;
+
+  return {
+    stats: {
+      totalHours: formatDurationMs(totalMs),
+      sessionCount: sessions.length,
+      commitCount: totalCommits,
+      bugsFound: bugs.length,
+      testRuns: testStats.runCount,
+      passRate,
+    },
+    sessions: portfolioSessions,
+    bugs,
+  };
+}
+
 // GET /api/portfolio
 router.get('/', (_req, res) => {
   try {
-    // Sessions and commits from DB
-    const sessions = db.prepare(
-      'SELECT * FROM sessions WHERE clock_out IS NOT NULL ORDER BY clock_in DESC'
-    ).all() as Array<{ id: number; clock_in: string; clock_out: string; summary: string | null }>;
-
-    const totalCommits = (db.prepare(
-      'SELECT COUNT(*) as count FROM commits'
-    ).get() as { count: number }).count;
-
-    let totalMs = 0;
-    const portfolioSessions: PortfolioSession[] = sessions.map((s) => {
-      const ms = new Date(s.clock_out).getTime() - new Date(s.clock_in).getTime();
-      totalMs += ms;
-
-      const commitCount = (db.prepare(
-        'SELECT COUNT(*) as count FROM commits WHERE session_id = ?'
-      ).get(s.id) as { count: number }).count;
-
-      const noteCount = (db.prepare(
-        'SELECT COUNT(*) as count FROM notes WHERE session_id = ?'
-      ).get(s.id) as { count: number }).count;
-
-      return {
-        id: s.id,
-        date: s.clock_in,
-        duration: formatDuration(s.clock_in, s.clock_out),
-        commitCount,
-        noteCount,
-        summary: s.summary,
-      };
-    });
-
-    // Parse bug reports
-    const bugs: BugReport[] = [];
-    try {
-      const bugFiles = fs.readdirSync(BUGS_DIR)
-        .filter((f) => (f.startsWith('BUG-') || f.startsWith('FINDING-')) && f.endsWith('.md'))
-        .sort();
-
-      for (const file of bugFiles) {
-        const bug = parseBugFile(path.join(BUGS_DIR, file), file);
-        if (bug) bugs.push(bug);
-      }
-    } catch {
-      // Bugs dir may not exist
-    }
-
-    // Test run stats
-    const testStats = getTestRunStats();
-
-    const passRate = testStats.total > 0
-      ? Math.round((testStats.passed / testStats.total) * 100)
-      : 0;
-
-    res.json({
-      stats: {
-        totalHours: formatDurationMs(totalMs),
-        sessionCount: sessions.length,
-        commitCount: totalCommits,
-        bugsFound: bugs.length,
-        testRuns: testStats.runCount,
-        passRate,
-      },
-      sessions: portfolioSessions,
-      bugs,
-    });
+    const data = getPortfolioData();
+    res.json(data);
   } catch (err) {
     console.error('Failed to build portfolio data:', err);
     res.status(500).json({ error: 'Could not load portfolio data' });
@@ -241,37 +271,7 @@ router.get('/', (_req, res) => {
 // GET /api/portfolio/pdf
 router.get('/pdf', (_req, res) => {
   try {
-    // Gather data (same as above)
-    const sessions = db.prepare(
-      'SELECT * FROM sessions WHERE clock_out IS NOT NULL ORDER BY clock_in DESC'
-    ).all() as Array<{ id: number; clock_in: string; clock_out: string; summary: string | null }>;
-
-    const totalCommits = (db.prepare(
-      'SELECT COUNT(*) as count FROM commits'
-    ).get() as { count: number }).count;
-
-    let totalMs = 0;
-    for (const s of sessions) {
-      totalMs += new Date(s.clock_out).getTime() - new Date(s.clock_in).getTime();
-    }
-
-    const bugs: BugReport[] = [];
-    try {
-      const bugFiles = fs.readdirSync(BUGS_DIR)
-        .filter((f) => (f.startsWith('BUG-') || f.startsWith('FINDING-')) && f.endsWith('.md'))
-        .sort();
-      for (const file of bugFiles) {
-        const bug = parseBugFile(path.join(BUGS_DIR, file), file);
-        if (bug) bugs.push(bug);
-      }
-    } catch {
-      // ignore
-    }
-
-    const testStats = getTestRunStats();
-    const passRate = testStats.total > 0
-      ? Math.round((testStats.passed / testStats.total) * 100)
-      : 0;
+    const { stats, sessions, bugs } = getPortfolioData();
 
     // Build PDF
     const doc = new PDFDocument({ margin: 50, size: 'A4' });
@@ -295,12 +295,12 @@ router.get('/pdf', (_req, res) => {
     doc.fontSize(11).font('Helvetica');
 
     const statsLines = [
-      `Total Time Logged: ${formatDurationMs(totalMs)}`,
-      `Work Sessions: ${sessions.length}`,
-      `Commits: ${totalCommits}`,
-      `Bugs Reported: ${bugs.length}`,
-      `Test Runs: ${testStats.runCount}`,
-      `Overall Pass Rate: ${passRate}%`,
+      `Total Time Logged: ${stats.totalHours}`,
+      `Work Sessions: ${stats.sessionCount}`,
+      `Commits: ${stats.commitCount}`,
+      `Bugs Reported: ${stats.bugsFound}`,
+      `Test Runs: ${stats.testRuns}`,
+      `Overall Pass Rate: ${stats.passRate}%`,
     ];
     for (const line of statsLines) {
       doc.text(`  •  ${line}`);
@@ -314,6 +314,8 @@ router.get('/pdf', (_req, res) => {
       doc.fontSize(10).font('Helvetica');
 
       for (const bug of bugs) {
+        if (doc.y > 700) doc.addPage();
+
         const severityLabel = `[${bug.severity}]`;
         doc.font('Helvetica-Bold').text(`${severityLabel} ${bug.title}`, { continued: false });
         doc.font('Helvetica').fillColor('#444')
@@ -326,8 +328,10 @@ router.get('/pdf', (_req, res) => {
       doc.moveDown(0.5);
     }
 
-    // Session history
+    // Session history — no row cap, page breaks handled by pdfkit
     if (sessions.length > 0) {
+      if (doc.y > 650) doc.addPage();
+
       doc.fontSize(16).font('Helvetica-Bold').text('Session History');
       doc.moveDown(0.5);
       doc.fontSize(10).font('Helvetica');
@@ -351,39 +355,25 @@ router.get('/pdf', (_req, res) => {
       doc.moveDown(0.3);
 
       doc.font('Helvetica');
-      for (const s of sessions.slice(0, 30)) { // Limit to 30 for PDF length
-        const commitCount = (db.prepare(
-          'SELECT COUNT(*) as count FROM commits WHERE session_id = ?'
-        ).get(s.id) as { count: number }).count;
+      for (const s of sessions) {
+        if (doc.y > 750) doc.addPage();
 
-        const dateStr = new Date(s.clock_in).toLocaleDateString('en-US', {
+        const dateStr = new Date(s.date).toLocaleDateString('en-US', {
           month: 'short', day: 'numeric', year: 'numeric'
         });
-        const duration = formatDuration(s.clock_in, s.clock_out);
-
-        // Get first line of summary for activity
-        const activity = s.summary
-          ? s.summary.split('\n').filter((l: string) => l.trim() && !l.startsWith('Session:'))[0] || ''
-          : '';
-
-        const rowY = doc.y;
-
-        // Check if we need a new page
-        if (rowY > 750) {
-          doc.addPage();
-        }
 
         doc.text(dateStr, col1, doc.y, { width: 110 });
         const lineY = doc.y - doc.currentLineHeight();
-        doc.text(duration, col2, lineY, { width: 60 });
-        doc.text(String(commitCount), col3, lineY, { width: 60 });
-        doc.text(activity.slice(0, 50), col4, lineY, { width: 235 });
+        doc.text(s.duration, col2, lineY, { width: 60 });
+        doc.text(String(s.commitCount), col3, lineY, { width: 60 });
+        doc.text(s.activity.slice(0, 50), col4, lineY, { width: 235 });
         doc.moveDown(0.2);
       }
       doc.moveDown(1);
     }
 
     // Skills section
+    if (doc.y > 650) doc.addPage();
     doc.fontSize(16).font('Helvetica-Bold').text('Skills & Tools');
     doc.moveDown(0.5);
     doc.fontSize(11).font('Helvetica');
