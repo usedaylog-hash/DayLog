@@ -32,14 +32,23 @@ export function getBiweeklyPeriods(count: number): Array<{ start: string; end: s
   return periods;
 }
 
-/** Round a Date down to the nearest 5-minute mark. */
-export function roundDown5(d: Date): Date {
+/** Round a Date to the nearest 30-minute mark. */
+export function roundToHalfHour(d: Date): Date {
   const result = new Date(d);
-  result.setMinutes(Math.floor(result.getMinutes() / 5) * 5, 0, 0);
+  const mins = result.getMinutes();
+  // 0-14 → :00, 15-44 → :30, 45-59 → next :00
+  if (mins < 15) {
+    result.setMinutes(0, 0, 0);
+  } else if (mins < 45) {
+    result.setMinutes(30, 0, 0);
+  } else {
+    result.setMinutes(0, 0, 0);
+    result.setTime(result.getTime() + 3_600_000);
+  }
   return result;
 }
 
 export function formatTime(iso: string): string {
-  const d = roundDown5(new Date(iso));
+  const d = roundToHalfHour(new Date(iso));
   return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Los_Angeles' });
 }

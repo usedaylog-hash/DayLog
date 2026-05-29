@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { getBiweeklyPeriods, formatTime, roundDown5, ANCHOR, PERIOD_MS, DAY_MS } from './invoice-utils.js';
+import { getBiweeklyPeriods, formatTime, roundToHalfHour, ANCHOR, PERIOD_MS, DAY_MS } from './invoice-utils.js';
 
 describe('getBiweeklyPeriods', () => {
   beforeEach(() => {
@@ -57,8 +57,8 @@ describe('getBiweeklyPeriods', () => {
 });
 
 describe('formatTime', () => {
-  it('formats a morning time with AM', () => {
-    // 9:30 AM Pacific = 16:30 UTC (during PST) or 17:30 UTC (during PDT)
+  it('formats a morning time with AM (rounded to nearest half hour)', () => {
+    // 9:30 AM Pacific = 17:30 UTC (during PST), stays at 9:30 AM
     const result = formatTime('2026-01-15T17:30:00Z');
     expect(result).toMatch(/9:30\s*AM/);
   });
@@ -75,46 +75,76 @@ describe('formatTime', () => {
   });
 });
 
-describe('roundDown5', () => {
-  it('rounds 7:57 down to 7:55', () => {
+describe('roundToHalfHour', () => {
+  it('rounds 7:57 up to 8:00 (nearest :00)', () => {
     const d = new Date('2026-01-15T07:57:00');
-    const result = roundDown5(d);
-    expect(result.getHours()).toBe(7);
-    expect(result.getMinutes()).toBe(55);
-    expect(result.getSeconds()).toBe(0);
-  });
-
-  it('rounds 1:34 down to 1:30', () => {
-    const d = new Date('2026-01-15T13:34:00');
-    const result = roundDown5(d);
-    expect(result.getMinutes()).toBe(30);
-  });
-
-  it('leaves times already on 5-minute marks unchanged', () => {
-    const d = new Date('2026-01-15T09:30:00');
-    const result = roundDown5(d);
-    expect(result.getMinutes()).toBe(30);
-  });
-
-  it('rounds 9:01 down to 9:00', () => {
-    const d = new Date('2026-01-15T09:01:44');
-    const result = roundDown5(d);
+    const result = roundToHalfHour(d);
+    expect(result.getHours()).toBe(8);
     expect(result.getMinutes()).toBe(0);
     expect(result.getSeconds()).toBe(0);
   });
 
+  it('rounds 7:31 to 7:30 (nearest :30)', () => {
+    const d = new Date('2026-01-15T07:31:00');
+    const result = roundToHalfHour(d);
+    expect(result.getHours()).toBe(7);
+    expect(result.getMinutes()).toBe(30);
+  });
+
+  it('rounds 8:08 to 8:00 (nearest :00)', () => {
+    const d = new Date('2026-01-15T08:08:00');
+    const result = roundToHalfHour(d);
+    expect(result.getHours()).toBe(8);
+    expect(result.getMinutes()).toBe(0);
+  });
+
+  it('rounds 4:14 to 4:00 (nearest :00)', () => {
+    const d = new Date('2026-01-15T16:14:00');
+    const result = roundToHalfHour(d);
+    expect(result.getHours()).toBe(16);
+    expect(result.getMinutes()).toBe(0);
+  });
+
+  it('rounds 4:16 to 4:30 (nearest :30)', () => {
+    const d = new Date('2026-01-15T16:16:00');
+    const result = roundToHalfHour(d);
+    expect(result.getHours()).toBe(16);
+    expect(result.getMinutes()).toBe(30);
+  });
+
+  it('rounds 11:50 up to 12:00 (crosses hour boundary)', () => {
+    const d = new Date('2026-01-15T11:50:00');
+    const result = roundToHalfHour(d);
+    expect(result.getHours()).toBe(12);
+    expect(result.getMinutes()).toBe(0);
+  });
+
+  it('leaves times already on the hour unchanged', () => {
+    const d = new Date('2026-01-15T09:00:00');
+    const result = roundToHalfHour(d);
+    expect(result.getHours()).toBe(9);
+    expect(result.getMinutes()).toBe(0);
+  });
+
+  it('leaves times already on :30 unchanged', () => {
+    const d = new Date('2026-01-15T09:30:00');
+    const result = roundToHalfHour(d);
+    expect(result.getHours()).toBe(9);
+    expect(result.getMinutes()).toBe(30);
+  });
+
   it('does not mutate the original date', () => {
     const d = new Date('2026-01-15T09:13:00');
-    roundDown5(d);
+    roundToHalfHour(d);
     expect(d.getMinutes()).toBe(13);
   });
 });
 
-describe('formatTime (rounds down)', () => {
-  it('rounds 9:37 AM down to 9:35 AM', () => {
+describe('formatTime (rounds to nearest half hour)', () => {
+  it('rounds 9:37 AM to 9:30 AM', () => {
     // 9:37 AM Pacific (PST) = 17:37 UTC
     const result = formatTime('2026-01-15T17:37:00Z');
-    expect(result).toMatch(/9:35\s*AM/);
+    expect(result).toMatch(/9:30\s*AM/);
   });
 });
 
