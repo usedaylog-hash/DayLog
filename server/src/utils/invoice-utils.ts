@@ -32,7 +32,14 @@ export function getBiweeklyPeriods(count: number): Array<{ start: string; end: s
   return periods;
 }
 
+/** Round a Date down to the nearest 5-minute mark. */
+export function roundDown5(d: Date): Date {
+  const result = new Date(d);
+  result.setMinutes(Math.floor(result.getMinutes() / 5) * 5, 0, 0);
+  return result;
+}
+
 export function formatTime(iso: string): string {
-  const d = new Date(iso);
+  const d = roundDown5(new Date(iso));
   return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Los_Angeles' });
 }

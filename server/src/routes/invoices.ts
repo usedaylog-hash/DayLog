@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import PDFDocument from 'pdfkit';
 import { db } from '../db/connection.js';
-import { getBiweeklyPeriods, formatTime, DAY_MS } from '../utils/invoice-utils.js';
+import { getBiweeklyPeriods, formatTime, roundDown5, DAY_MS } from '../utils/invoice-utils.js';
 import type { LineItem } from '../utils/invoice-utils.js';
 
 const router = Router();
@@ -37,7 +37,9 @@ function getLineItems(periodStart: string, periodEnd: string, hourlyRate: number
   const items: LineItem[] = [];
 
   for (const session of sessions) {
-    const ms = new Date(session.clock_out).getTime() - new Date(session.clock_in).getTime();
+    const clockIn = roundDown5(new Date(session.clock_in));
+    const clockOut = roundDown5(new Date(session.clock_out));
+    const ms = clockOut.getTime() - clockIn.getTime();
     const sessionHours = Math.round((ms / 3_600_000) * 100) / 100;
     const dateStr = session.clock_in.split('T')[0];
     const timeRange = `${formatTime(session.clock_in)} – ${formatTime(session.clock_out)}`;

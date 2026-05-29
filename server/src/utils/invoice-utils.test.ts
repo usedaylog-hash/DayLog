@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { getBiweeklyPeriods, formatTime, ANCHOR, PERIOD_MS, DAY_MS } from './invoice-utils.js';
+import { getBiweeklyPeriods, formatTime, roundDown5, ANCHOR, PERIOD_MS, DAY_MS } from './invoice-utils.js';
 
 describe('getBiweeklyPeriods', () => {
   beforeEach(() => {
@@ -72,6 +72,49 @@ describe('formatTime', () => {
   it('returns a string containing a colon (time separator)', () => {
     const result = formatTime('2026-06-15T20:00:00Z');
     expect(result).toContain(':');
+  });
+});
+
+describe('roundDown5', () => {
+  it('rounds 7:57 down to 7:55', () => {
+    const d = new Date('2026-01-15T07:57:00');
+    const result = roundDown5(d);
+    expect(result.getHours()).toBe(7);
+    expect(result.getMinutes()).toBe(55);
+    expect(result.getSeconds()).toBe(0);
+  });
+
+  it('rounds 1:34 down to 1:30', () => {
+    const d = new Date('2026-01-15T13:34:00');
+    const result = roundDown5(d);
+    expect(result.getMinutes()).toBe(30);
+  });
+
+  it('leaves times already on 5-minute marks unchanged', () => {
+    const d = new Date('2026-01-15T09:30:00');
+    const result = roundDown5(d);
+    expect(result.getMinutes()).toBe(30);
+  });
+
+  it('rounds 9:01 down to 9:00', () => {
+    const d = new Date('2026-01-15T09:01:44');
+    const result = roundDown5(d);
+    expect(result.getMinutes()).toBe(0);
+    expect(result.getSeconds()).toBe(0);
+  });
+
+  it('does not mutate the original date', () => {
+    const d = new Date('2026-01-15T09:13:00');
+    roundDown5(d);
+    expect(d.getMinutes()).toBe(13);
+  });
+});
+
+describe('formatTime (rounds down)', () => {
+  it('rounds 9:37 AM down to 9:35 AM', () => {
+    // 9:37 AM Pacific (PST) = 17:37 UTC
+    const result = formatTime('2026-01-15T17:37:00Z');
+    expect(result).toMatch(/9:35\s*AM/);
   });
 });
 
