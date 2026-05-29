@@ -42,7 +42,7 @@ function getLineItems(periodStart: string, periodEnd: string, hourlyRate: number
     const dateStr = session.clock_in.split('T')[0];
     const timeRange = `${formatTime(session.clock_in)} – ${formatTime(session.clock_out)}`;
 
-    // Extract work items from summary
+    // Extract work items from summary, filtering noise
     const workItems: string[] = [];
     if (session.summary) {
       for (const line of session.summary.split('\n')) {
@@ -52,13 +52,27 @@ function getLineItems(periodStart: string, periodEnd: string, hourlyRate: number
         if (/^\d+ commits?$/.test(trimmed)) continue;
         // Strip git hash prefix if present
         const commitMatch = trimmed.match(/^[a-f0-9]{7}\s+(.+)/);
-        workItems.push(commitMatch ? commitMatch[1] : trimmed);
+        const text = commitMatch ? commitMatch[1] : trimmed;
+        // Filter out noisy/housekeeping commits
+        if (/^Update CLAUDE\.md/i.test(text)) continue;
+        if (/^Update reports/i.test(text)) continue;
+        workItems.push(text);
       }
     }
 
-    const description = workItems.length > 0
-      ? `${timeRange}\n${workItems.join('\n')}`
-      : `${timeRange}: Development work`;
+    // Limit to 3 work items to keep rows concise
+    const maxItems = 3;
+    let descLines: string;
+    if (workItems.length > maxItems) {
+      const shown = workItems.slice(0, maxItems).join('\n');
+      descLines = `${timeRange}\n${shown}\n+ ${workItems.length - maxItems} more`;
+    } else if (workItems.length > 0) {
+      descLines = `${timeRange}\n${workItems.join('\n')}`;
+    } else {
+      descLines = `${timeRange}: Development work`;
+    }
+
+    const description = descLines;
 
     items.push({
       date: dateStr,
@@ -177,22 +191,36 @@ function generatePdf(
   const colRate = 440;
   const colAmt = 500;
 
-  // Table header
-  doc.rect(colDate, doc.y, 512, 18).fill('#e2e8f0');
-  const headerY = doc.y + 4;
-  doc.fontSize(8).font('Helvetica-Bold').fillColor('#1e293b');
-  doc.text('Date', colDate + 4, headerY, { width: 76 });
-  doc.text('Location', colLoc + 4, headerY, { width: 60 });
-  doc.text('Description', colDesc + 4, headerY, { width: 190 });
-  doc.text('Hours', colHrs + 4, headerY, { width: 44 });
-  doc.text('Rate', colRate + 4, headerY, { width: 50 });
-  doc.text('Amount', colAmt + 4, headerY, { width: 55 });
-  doc.y = headerY + 18;
+  // Helper to draw table header row
+  function drawTableHeader() {
+    doc.rect(colDate, doc.y, 512, 18).fill('#e2e8f0');
+    const hy = doc.y + 4;
+    doc.fontSize(8).font('Helvetica-Bold').fillColor('#1e293b');
+    doc.text('Date', colDate + 4, hy, { width: 76 });
+    doc.text('Location', colLoc + 4, hy, { width: 60 });
+    doc.text('Description', colDesc + 4, hy, { width: 190 });
+    doc.text('Hours', colHrs + 4, hy, { width: 44 });
+    doc.text('Rate', colRate + 4, hy, { width: 50 });
+    doc.text('Amount', colAmt + 4, hy, { width: 55 });
+    doc.y = hy + 18;
+  }
 
-  // Table rows
+  drawTableHeader();
+
+  // Table rows — pre-measure to prevent page splits
+  const pageBottom = 720;
   doc.font('Helvetica').fontSize(8).fillColor('#333');
   for (const item of items) {
-    if (doc.y > 700) doc.addPage();
+    // Pre-measure the row height based on description
+    const descHeight = doc.heightOfString(item.description, { width: 190 });
+    const rowHeight = Math.max(descHeight, 12) + 2;
+
+    // If this row won't fit, break page and reprint header
+    if (doc.y + rowHeight > pageBottom) {
+      doc.addPage();
+      drawTableHeader();
+      doc.font('Helvetica').fontSize(8).fillColor('#333');
+    }
 
     const rowY = doc.y + 2;
     doc.text(item.date, colDate + 4, rowY, { width: 76 });
@@ -202,8 +230,6 @@ function generatePdf(
     doc.text(`$${item.rate.toFixed(2)}`, colRate + 4, rowY, { width: 50 });
     doc.text(`$${item.amount.toFixed(2)}`, colAmt + 4, rowY, { width: 55 });
 
-    // Measure how much vertical space the description used
-    const descHeight = doc.heightOfString(item.description, { width: 190 });
     doc.y = rowY + Math.max(descHeight, 12);
 
     // Light border
