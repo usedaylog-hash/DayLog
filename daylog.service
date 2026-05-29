@@ -1,0 +1,19 @@
+[Unit]
+Description=DayLog Server
+After=network.target
+
+[Service]
+Type=simple
+User=luke
+WorkingDirectory=/home/luke/MyCode/src/DayLog/server
+ExecStart=/usr/bin/node node_modules/.bin/tsx src/index.ts
+Restart=on-failure
+RestartSec=5
+Environment=NODE_ENV=production
+EnvironmentFile=-/home/luke/MyCode/src/DayLog/.env
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=daylog
+
+[Install]
+WantedBy=multi-user.target

@@ -11,7 +11,7 @@ DayLog is a full-stack daily work journal and time-tracking tool. Clock in, log 
 **Tech Stack:**
 - **Client:** React 19, React Router 7, TypeScript, Vite, CSS Modules
 - **Server:** Express 5, better-sqlite3, TypeScript, tsx
-- **Database:** SQLite (WAL mode) at `data/daylog.db`
+- **Database:** SQLite (WAL mode) at `data/daylog.db` (configurable via `DATABASE_PATH` env var)
 - **No external UI libraries** — all styling is hand-rolled CSS Modules with variables in `index.css`
 
 ---
@@ -170,6 +170,67 @@ An "Invoices" tab generates biweekly PDF invoices from DayLog session data.
 **Config:** Billed to Floburn Inc., hourly rate $20/hr. Config seeded with defaults in migration.
 
 **Toast component:** Made `onUndo` optional in `Toast.tsx` so it can be reused as a simple confirmation toast (used for invoice deletion).
+
+---
+
+## Production Server
+
+### Environment Variables
+
+Configured via `.env` file in project root (see `.env.example`) or via systemd `EnvironmentFile`:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | `3001` | Server listen port |
+| `DATABASE_PATH` | `data/daylog.db` | SQLite database path (relative to project root) |
+| `NODE_ENV` | — | Set to `production` to serve client static files |
+
+The `.env` loader (`server/src/env.ts`) is a zero-dependency side-effect module imported first in `index.ts`. Environment variables already set take precedence over `.env` values.
+
+### Health Check
+
+`GET /api/health` — pings the database, returns `{ status: "ok", uptime: <seconds> }` or `503` if DB is unreachable.
+
+### Production Mode
+
+When `NODE_ENV=production`, the server serves `client/dist/` as static files with SPA fallback. Build first with `npm run build`.
+
+```bash
+npm run build
+NODE_ENV=production npm start
+# Server on :3001 serves both API and client
+```
+
+### Graceful Shutdown
+
+The server handles `SIGTERM` and `SIGINT` — closes HTTP connections, closes the SQLite database, then exits.
+
+### systemd Service
+
+`daylog.service` in the repo root. Install with:
+
+```bash
+sudo cp daylog.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable daylog
+sudo systemctl start daylog
+```
+
+Logs via `journalctl -u daylog -f`.
+
+---
+
+## Smoke Test
+
+Standalone Playwright script for read-only visual verification of all pages.
+
+```bash
+npx playwright install chromium   # one-time setup
+npm run dev                        # in another terminal
+node smoke-test.mjs                # navigates all pages, saves screenshots
+```
+
+Screenshots saved to a temp directory (path printed on run). Does not modify any data.
 
 ---
 
