@@ -22,7 +22,7 @@ export function InvoicesPage() {
   const [taxSummary, setTaxSummary] = useState<TaxSummary | null>(null);
 
   useEffect(() => {
-    Promise.all([api.getInvoices(), api.getInvoicePeriods(), api.getInvoiceConfig(), api.getTaxSummary(taxYear)])
+    Promise.all([api.getInvoices(), api.getInvoicePeriods(), api.getInvoiceConfig(), api.getTaxSummary(new Date().getFullYear())])
       .then(([inv, per, cfg, tax]) => {
         setInvoices(inv);
         setPeriods(per);
