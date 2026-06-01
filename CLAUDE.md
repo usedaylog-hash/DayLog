@@ -34,7 +34,7 @@ DayLog/
 │       ├── db/
 │       │   ├── connection.ts    # SQLite setup
 │       │   ├── migrate.ts       # Migration runner (auto-applies on startup)
-│       │   └── migrations/      # SQL migration files (001-004)
+│       │   └── migrations/      # SQL migration files (001-005)
 │       ├── routes/              # sessions, notes, commits, test-runs, portfolio, invoices
 │       └── index.ts             # Express app setup (port 3001)
 └── data/daylog.db               # SQLite database
@@ -63,7 +63,7 @@ Five tables, managed by sequential SQL migrations:
 - **sessions**: `id, clock_in, clock_out, summary, handoff, created_at`
 - **notes**: `id, session_id (FK), content, timestamp, created_at`
 - **commits**: `id, session_id (FK), hash, message, author, timestamp, comment, created_at` (UNIQUE on session_id+hash)
-- **invoices**: `id, invoice_number, invoice_date, period_start, period_end, hourly_rate, total_hours, total_amount, created_at`
+- **invoices**: `id, invoice_number, invoice_date, period_start, period_end, hourly_rate, total_hours, total_amount, paid_date, created_at`
 - **invoice_config**: `key, value` (key/value store for contractor/client info, hourly rate)
 
 ---
@@ -101,6 +101,7 @@ Five tables, managed by sequential SQL migrations:
 
 ## Key Decisions
 
+- **Single branch workflow** — all work happens on `master`. No feature branches or QA branch.
 - No new dependencies unless absolutely necessary — keep the stack lean.
 - `prefers-reduced-motion` media query is in place — respect it when adding animations.
 - Responsive breakpoints at 640px and 480px are already set up.
