@@ -245,7 +245,6 @@ export function InvoicesPage() {
                     <td>
                       {paymentInput?.id === inv.id ? (
                         <span className={styles.paymentInputGroup}>
-                          <span className={styles.inputPrefix}>$</span>
                           <input
                             type="number"
                             className={styles.paymentAmountInput}
