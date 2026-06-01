@@ -146,6 +146,15 @@ describe('invoice methods', () => {
     await api.deleteInvoice(7);
     expect(mockFetch).toHaveBeenCalledWith('/api/invoices/7', expect.objectContaining({ method: 'DELETE' }));
   });
+
+  it('updatePayment sends PATCH with paid_amount', async () => {
+    mockFetch.mockResolvedValue(jsonResponse({ id: 1, paid_amount: 50 }));
+    await api.updatePayment(1, 50);
+    const call = mockFetch.mock.calls[0];
+    expect(call[0]).toBe('/api/invoices/1/paid');
+    expect(call[1].method).toBe('PATCH');
+    expect(JSON.parse(call[1].body)).toEqual({ paid_amount: 50 });
+  });
 });
 
 describe('non-fetch helpers', () => {

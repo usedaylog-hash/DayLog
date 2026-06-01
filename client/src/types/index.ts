@@ -103,6 +103,7 @@ export interface Invoice {
   total_amount: number;
   created_at: string;
   paid_date: string | null;
+  paid_amount: number;
 }
 
 export interface QuarterData {

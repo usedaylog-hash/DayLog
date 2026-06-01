@@ -15,6 +15,7 @@ export function InvoicesPage() {
   const [error, setError] = useState('');
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
   const [confirmUnpaid, setConfirmUnpaid] = useState<number | null>(null);
+  const [paymentInput, setPaymentInput] = useState<{ id: number; amount: string } | null>(null);
   const [toast, setToast] = useState('');
   const [config, setConfig] = useState<Record<string, string>>({});
   const [savingConfig, setSavingConfig] = useState(false);
@@ -99,24 +100,21 @@ export function InvoicesPage() {
     }
   }
 
-  async function handleMarkPaid(id: number) {
+  async function handleUpdatePayment(id: number, amount: number) {
     try {
-      const today = new Date().toISOString().split('T')[0];
-      const updated = await api.markInvoicePaid(id, today);
+      const updated = await api.updatePayment(id, amount);
       setInvoices((prev) => prev.map((i) => (i.id === id ? updated : i)));
+      setPaymentInput(null);
+      setConfirmUnpaid(null);
+      // Refresh tax summary
+      api.getTaxSummary(taxYear).then(setTaxSummary).catch(() => {});
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to mark as paid');
+      setError(err instanceof Error ? err.message : 'Failed to update payment');
     }
   }
 
-  async function handleMarkUnpaid(id: number) {
-    try {
-      const updated = await api.markInvoiceUnpaid(id);
-      setInvoices((prev) => prev.map((i) => (i.id === id ? updated : i)));
-      setConfirmUnpaid(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to mark as unpaid');
-    }
+  function openPaymentInput(inv: Invoice) {
+    setPaymentInput({ id: inv.id, amount: inv.total_amount.toFixed(2) });
   }
 
   function updateConfig(key: string, value: string) {
@@ -245,11 +243,27 @@ export function InvoicesPage() {
                     <td>{inv.total_hours.toFixed(2)}</td>
                     <td>${inv.total_amount.toFixed(2)}</td>
                     <td>
-                      {inv.paid_date ? (
+                      {paymentInput?.id === inv.id ? (
+                        <span className={styles.paymentInputGroup}>
+                          <span className={styles.inputPrefix}>$</span>
+                          <input
+                            type="number"
+                            className={styles.paymentAmountInput}
+                            value={paymentInput.amount}
+                            onChange={(e) => setPaymentInput({ ...paymentInput, amount: e.target.value })}
+                            min="0"
+                            max={inv.total_amount}
+                            step="0.01"
+                            autoFocus
+                          />
+                          <button className={styles.confirmYes} onClick={() => handleUpdatePayment(inv.id, parseFloat(paymentInput.amount) || 0)}>Save</button>
+                          <button className={styles.confirmNo} onClick={() => setPaymentInput(null)}>Cancel</button>
+                        </span>
+                      ) : inv.paid_amount >= inv.total_amount ? (
                         confirmUnpaid === inv.id ? (
                           <span className={styles.confirmGroup}>
                             <span className={styles.confirmText}>Mark unpaid?</span>
-                            <button className={styles.confirmYes} onClick={() => handleMarkUnpaid(inv.id)}>Yes</button>
+                            <button className={styles.confirmYes} onClick={() => handleUpdatePayment(inv.id, 0)}>Yes</button>
                             <button className={styles.confirmNo} onClick={() => setConfirmUnpaid(null)}>No</button>
                           </span>
                         ) : (
@@ -257,8 +271,13 @@ export function InvoicesPage() {
                             Paid {inv.paid_date}
                           </button>
                         )
+                      ) : inv.paid_amount > 0 ? (
+                        <button className={styles.badgePartial} onClick={() => openPaymentInput(inv)}>
+                          ${inv.paid_amount.toFixed(2)}/${inv.total_amount.toFixed(2)}
+                          <span className={styles.remainingHint}> (${(inv.total_amount - inv.paid_amount).toFixed(2)} remaining)</span>
+                        </button>
                       ) : (
-                        <button className={styles.badgeUnpaid} onClick={() => handleMarkPaid(inv.id)}>
+                        <button className={styles.badgeUnpaid} onClick={() => openPaymentInput(inv)}>
                           Unpaid
                         </button>
                       )}

@@ -111,17 +111,10 @@ export const api = {
     return `${BASE}/invoices/${id}/pdf`;
   },
 
-  markInvoicePaid(id: number, paidDate: string): Promise<Invoice> {
+  updatePayment(id: number, paidAmount: number): Promise<Invoice> {
     return request(`/invoices/${id}/paid`, {
       method: 'PATCH',
-      body: JSON.stringify({ paid_date: paidDate }),
-    });
-  },
-
-  markInvoiceUnpaid(id: number): Promise<Invoice> {
-    return request(`/invoices/${id}/paid`, {
-      method: 'PATCH',
-      body: JSON.stringify({ paid_date: null }),
+      body: JSON.stringify({ paid_amount: paidAmount }),
     });
   },
 

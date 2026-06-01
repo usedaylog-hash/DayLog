@@ -17,6 +17,7 @@ interface InvoiceRow {
   total_amount: number;
   created_at: string;
   paid_date: string | null;
+  paid_amount: number;
 }
 
 interface SessionRow {
@@ -324,10 +325,10 @@ router.get('/tax-summary', (req, res) => {
     const taxRate = parseFloat(config.tax_rate) || 30;
 
     const invoices = db.prepare(
-      `SELECT total_hours, total_amount, paid_date, period_start
+      `SELECT total_hours, total_amount, paid_amount, period_start
        FROM invoices
        WHERE period_start >= ? AND period_start < ?`
-    ).all(`${year}-01-01`, `${year + 1}-01-01`) as (Pick<InvoiceRow, 'total_hours' | 'total_amount' | 'paid_date'> & { period_start: string })[];
+    ).all(`${year}-01-01`, `${year + 1}-01-01`) as (Pick<InvoiceRow, 'total_hours' | 'total_amount' | 'paid_amount'> & { period_start: string })[];
 
     const quarterLabels = ['Q1 (Jan–Mar)', 'Q2 (Apr–Jun)', 'Q3 (Jul–Sep)', 'Q4 (Oct–Dec)'];
     const quarters = quarterLabels.map((label, i) => ({
@@ -346,11 +347,8 @@ router.get('/tax-summary', (req, res) => {
       const q = quarters[qi];
       q.hours += inv.total_hours;
       q.earned += inv.total_amount;
-      if (inv.paid_date) {
-        q.paid += inv.total_amount;
-      } else {
-        q.unpaid += inv.total_amount;
-      }
+      q.paid += inv.paid_amount;
+      q.unpaid += inv.total_amount - inv.paid_amount;
     }
 
     // Round and compute tax
@@ -447,17 +445,21 @@ router.get('/:id/pdf', (req, res) => {
   }
 });
 
-// PATCH /api/invoices/:id/paid — mark invoice paid or unpaid
+// PATCH /api/invoices/:id/paid — update payment amount
 router.patch('/:id/paid', (req, res) => {
   try {
-    const { paid_date } = req.body as { paid_date: string | null };
-    const result = db.prepare('UPDATE invoices SET paid_date = ? WHERE id = ?').run(paid_date, req.params.id);
-    if (result.changes === 0) {
+    const { paid_amount } = req.body as { paid_amount: number };
+    const invoice = db.prepare('SELECT * FROM invoices WHERE id = ?').get(req.params.id) as InvoiceRow | undefined;
+    if (!invoice) {
       res.status(404).json({ error: 'Invoice not found' });
       return;
     }
-    const invoice = db.prepare('SELECT * FROM invoices WHERE id = ?').get(req.params.id) as InvoiceRow;
-    res.json(invoice);
+    const paidDate = paid_amount >= invoice.total_amount
+      ? (invoice.paid_date ?? new Date().toISOString().split('T')[0])
+      : null;
+    db.prepare('UPDATE invoices SET paid_amount = ?, paid_date = ? WHERE id = ?').run(paid_amount, paidDate, req.params.id);
+    const updated = db.prepare('SELECT * FROM invoices WHERE id = ?').get(req.params.id) as InvoiceRow;
+    res.json(updated);
   } catch (err) {
     console.error('Failed to update invoice payment status:', err);
     res.status(500).json({ error: 'Could not update payment status' });
