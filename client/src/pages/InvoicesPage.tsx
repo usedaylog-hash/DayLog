@@ -272,9 +272,10 @@ export function InvoicesPage() {
                           </button>
                         )
                       ) : inv.paid_amount > 0 ? (
-                        <button className={styles.badgePartial} onClick={() => openPaymentInput(inv)}>
-                          ${inv.paid_amount.toFixed(2)}/${inv.total_amount.toFixed(2)}
-                          <span className={styles.remainingHint}> (${(inv.total_amount - inv.paid_amount).toFixed(2)} remaining)</span>
+                        <button className={styles.badgePartial} onClick={() => openPaymentInput(inv)}
+                          title={`$${inv.paid_amount.toFixed(2)} of $${inv.total_amount.toFixed(2)} paid — $${(inv.total_amount - inv.paid_amount).toFixed(2)} remaining`}
+                        >
+                          Partial ${inv.paid_amount.toFixed(0)}/${inv.total_amount.toFixed(0)}
                         </button>
                       ) : (
                         <button className={styles.badgeUnpaid} onClick={() => openPaymentInput(inv)}>

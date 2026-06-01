@@ -268,19 +268,14 @@
   opacity: 0.8;
 }
 
-.remainingHint {
-  font-weight: 400;
-  font-size: 0.72rem;
-}
-
 .paymentInputGroup {
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
+  gap: 0.25rem;
 }
 
 .paymentAmountInput {
-  width: 5.5rem;
+  width: 4.5rem;
   font: inherit;
   font-size: 0.85rem;
   padding: 0.2rem 0.4rem;
