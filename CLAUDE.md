@@ -144,7 +144,7 @@ An "Invoices" tab generates biweekly PDF invoices from DayLog session data.
 
 **What it does:**
 - Biweekly billing periods (Monday through Friday of the second week), anchored on 2026-01-05
-- Line items built from sessions: one row per session with clock-in/out times and commit messages as work descriptions
+- Line items built from sessions: one row per session with clock-in/out times and condensed work descriptions (max 3 items, noise filtered)
 - Configurable contractor/client info and hourly rate (stored in `invoice_config` table)
 - Invoice numbering: `INV-YYYY-NNN`, auto-incremented per year
 - PDF generation via pdfkit with dark navy header, contractor info, bill-to, rate section, services table, totals
@@ -234,9 +234,19 @@ Screenshots saved to a temp directory (path printed on run). Does not modify any
 
 ---
 
+## Invoice PDF Improvements (2026-05-29)
+
+Three fixes to invoice PDF generation in `server/src/routes/invoices.ts`:
+
+1. **Time rounding** — All clock-in/out times are rounded to the nearest 30 minutes via `roundToHalfHour()` (e.g. 7:57→8:00, 8:08→8:00, 4:16→4:30). Affects both displayed times and hours calculation.
+2. **Condensed descriptions** — Work items filtered (removes "Update CLAUDE.md", "Update reports" noise), capped at 3 items per row with "+ N more" suffix when truncated.
+3. **No orphaned columns** — Rows are pre-measured with `heightOfString()` before rendering; page breaks happen before the row starts so all columns stay together. Table headers reprint after each page break.
+
+---
+
 ## Next Session Plan
 
-All planned features (DAY-20 through DAY-26) are complete. No pending work items.
+No pending work items.
 
 ---
 
@@ -288,7 +298,7 @@ Post block cleans workspace on every run. No `tools` block needed — Node.js is
 - `server/vitest.config.ts` + `client/vitest.config.ts` — globals enabled, JUnit XML reporter when `CI=true`
 - Scripts: `npm test` (vitest run) and `npm test:watch` (vitest) in client, server, and root
 - Pure business logic extracted to `server/src/utils/` for testability:
-  - `invoice-utils.ts` — `getBiweeklyPeriods()`, `formatTime()`, period constants
+  - `invoice-utils.ts` — `getBiweeklyPeriods()`, `formatTime()`, `roundToHalfHour()`, period constants
   - `session-utils.ts` — `generateSummary()`, `generateHandoff()`
   - `portfolio-utils.ts` — `formatDuration()`, `formatDurationMs()`, `extractActivity()`, `parseBugContent()`
 - Route files updated to import from utils (no behavior changes)
