@@ -34,7 +34,7 @@ DayLog/
 │       ├── db/
 │       │   ├── connection.ts    # SQLite setup
 │       │   ├── migrate.ts       # Migration runner (auto-applies on startup)
-│       │   └── migrations/      # SQL migration files (001-005)
+│       │   └── migrations/      # SQL migration files (001-006)
 │       ├── routes/              # sessions, notes, commits, test-runs, portfolio, invoices
 │       └── index.ts             # Express app setup (port 3001)
 └── data/daylog.db               # SQLite database
@@ -63,7 +63,7 @@ Five tables, managed by sequential SQL migrations:
 - **sessions**: `id, clock_in, clock_out, summary, handoff, created_at`
 - **notes**: `id, session_id (FK), content, timestamp, created_at`
 - **commits**: `id, session_id (FK), hash, message, author, timestamp, comment, created_at` (UNIQUE on session_id+hash)
-- **invoices**: `id, invoice_number, invoice_date, period_start, period_end, hourly_rate, total_hours, total_amount, paid_date, created_at`
+- **invoices**: `id, invoice_number, invoice_date, period_start, period_end, hourly_rate, total_hours, total_amount, paid_date, paid_amount, created_at`
 - **invoice_config**: `key, value` (key/value store for contractor/client info, hourly rate)
 
 ---
@@ -165,7 +165,7 @@ An "Invoices" tab generates biweekly PDF invoices from DayLog session data.
 - `POST /api/invoices/generate` — Generate PDF + save to DB
 - `GET /api/invoices/:id/pdf` — Re-download past invoice
 - `DELETE /api/invoices/:id` — Delete invoice
-- `PATCH /api/invoices/:id/paid` — Mark invoice paid/unpaid
+- `PATCH /api/invoices/:id/paid` — Update payment amount (accepts `{ paid_amount }`, auto-derives `paid_date`)
 - `GET /api/invoices/tax-summary?year=` — Quarterly tax breakdown
 
 **Config:** Billed to Floburn Inc., hourly rate $20/hr. Config seeded with defaults in migration.
@@ -316,7 +316,7 @@ All tracked in Linear as DAY-20 through DAY-26.
 
 **Three features added:**
 1. **Config Settings UI** — Edit contractor/client info and rates directly in the Invoices tab
-2. **Payment Tracking** — Mark invoices as paid/unpaid with date tracking
+2. **Payment Tracking** — Track partial and full payments on invoices (three states: Unpaid/Partial/Paid)
 3. **Quarterly Tax Estimates** — Year-over-year quarterly earnings breakdown with estimated tax
 
 ### Linear Issues & Dependency Chain
@@ -334,12 +334,17 @@ DAY-20  Migration: paid_date column + tax_rate config seed (005-invoice-paid.sql
 ### Implementation Details
 
 - **Migration** (`005-invoice-paid.sql`): Adds `paid_date TEXT` to `invoices` table and seeds `tax_rate = '30'` in `invoice_config`. The migration runner in `migrate.ts` catches "duplicate column" errors for idempotency.
+- **Migration** (`006-invoice-paid-amount.sql`): Adds `paid_amount REAL DEFAULT 0` to `invoices` table, backfills existing paid invoices with `total_amount`.
 - **Settings section** at the bottom of InvoicesPage — two-column grid (contractor left, client right), with hourly rate (`$` prefix) and tax rate (`%` suffix). Save button calls `updateInvoiceConfig()`.
-- **Payment status** adds a Status column to Past Invoices table. Unpaid = amber badge (click to mark paid with today's date), Paid = green badge with date (click to unmark with confirmation).
-- **Tax overview** section between Past Invoices and Settings. Year dropdown (current + previous year), 3-card stats grid (YTD Earned, YTD Est. Tax, Outstanding), quarter-by-quarter table. Tax rate configurable via settings (default 30% covers ~15.3% SE + ~15% federal).
+- **Payment status** adds a Status column to Past Invoices table with three states:
+  - **Unpaid** (amber badge) — click opens inline amount input pre-filled with full amount
+  - **Partial** (blue badge) — shows `$paid/$total (remaining)`, click opens input pre-filled with full amount
+  - **Paid** (green badge) — shows paid date, click prompts confirm-to-unpaid (resets to 0)
+- **Payment logic**: PATCH endpoint accepts `{ paid_amount }`. `paid_date` is auto-derived: set to today when `paid_amount >= total_amount`, null otherwise.
+- **Tax overview** section between Past Invoices and Settings. Year dropdown (current + previous year), 3-card stats grid (YTD Earned, YTD Est. Tax, Outstanding), quarter-by-quarter table. Tax summary uses actual `paid_amount` for paid/unpaid breakdown. Tax rate configurable via settings (default 30% covers ~15.3% SE + ~15% federal).
 - **New endpoints:** `PATCH /api/invoices/:id/paid`, `GET /api/invoices/tax-summary?year=`
 - **New types:** `TaxSummary`, `QuarterData` in `client/src/types/index.ts`
-- **New API methods:** `markInvoicePaid()`, `markInvoiceUnpaid()`, `getTaxSummary()` in `client/src/api/client.ts`
+- **New API methods:** `updatePayment()`, `getTaxSummary()` in `client/src/api/client.ts`
 
 ---
 
