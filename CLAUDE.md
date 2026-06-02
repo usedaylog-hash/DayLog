@@ -247,7 +247,19 @@ Three fixes to invoice PDF generation in `server/src/routes/invoices.ts`:
 
 ## Next Session Plan
 
-No pending work items.
+Brainstorm and plan features to support transitioning from sole proprietor to LLC and expanding to multiple clients:
+
+- **Multi-client support** — Separate invoices, rates, and time tracking per client (currently single-client only)
+- **Client management** — Client profiles with company info, contact details, contracts, payment terms
+- **Multi-rate billing** — Different hourly rates per client or per project
+- **Proposal/estimate generation** — Create and send service proposals to prospective clients
+- **Contract tracking** — Store contract terms, start/end dates, renewal reminders
+- **Business dashboard** — Revenue across clients, utilization rate, pipeline visibility
+- **LLC-specific tax features** — Quarterly estimated taxes across multiple revenue streams, business expense tracking for Schedule C
+- **1099 improvements** — Multi-payer 1099 reconciliation now that there will be multiple clients
+- **Branding** — Professional invoice templates with LLC branding, custom logo support
+
+Think through what the data model changes look like (client_id on invoices/sessions, clients table, etc.) and what the phased rollout should be.
 
 ---
 
