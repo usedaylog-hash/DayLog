@@ -320,7 +320,7 @@
 
 .taxStatsGrid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 0.75rem;
   margin-bottom: 1.25rem;
 }
@@ -443,6 +443,116 @@
   border-left: 1px solid var(--color-border);
 }
 
+.taxHeaderActions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.btnSmall {
+  padding: 0.35rem 0.85rem;
+  font-size: 0.8rem;
+}
+
+.subSection {
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.subSectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.subSectionHeader .settingsSubtitle {
+  margin: 0;
+}
+
+.inlineForm {
+  background: var(--color-bg);
+  border-radius: var(--radius);
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.formRow {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+
+.formRow > label {
+  flex: 1;
+  min-width: 120px;
+}
+
+.formRow select {
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 400;
+  color: var(--color-text);
+  padding: 0.45rem 0.65rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  width: 100%;
+}
+
+.formRow select:focus {
+  border-color: var(--color-primary);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+}
+
+.formActions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.badge1099Matched {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: color-mix(in srgb, var(--color-success) 15%, transparent);
+  color: #16a34a;
+}
+
+.badge1099Discrepancy {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: color-mix(in srgb, var(--color-warning) 15%, transparent);
+  color: #d97706;
+}
+
+.badge1099Pending {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: color-mix(in srgb, var(--color-border) 40%, transparent);
+  color: var(--color-text-muted);
+}
+
+.badge1099Missing {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: color-mix(in srgb, var(--color-danger) 15%, transparent);
+  color: #dc2626;
+}
+
 @media (max-width: 640px) {
   .controls {
     flex-direction: column;
@@ -466,10 +576,20 @@
   }
 
   .taxStatsGrid {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr !important;
   }
 
   .settingsGrid {
     grid-template-columns: 1fr;
+  }
+
+  .taxHeaderActions {
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.5rem;
+  }
+
+  .formRow {
+    flex-direction: column;
   }
 }

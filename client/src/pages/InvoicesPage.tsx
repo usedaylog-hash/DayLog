@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api/client';
-import type { Invoice, InvoicePreview, BiweeklyPeriod, TaxSummary } from '../types';
+import type { Invoice, InvoicePreview, BiweeklyPeriod, TaxSummary, TaxPayment, Reconciliation1099 } from '../types';
 import { Toast } from '../components/Toast';
 import styles from './InvoicesPage.module.css';
 
@@ -22,13 +22,28 @@ export function InvoicesPage() {
   const [taxYear, setTaxYear] = useState(new Date().getFullYear());
   const [taxSummary, setTaxSummary] = useState<TaxSummary | null>(null);
 
+  // Tax payment state
+  const [showTaxPaymentForm, setShowTaxPaymentForm] = useState(false);
+  const [editingTaxPayment, setEditingTaxPayment] = useState<TaxPayment | null>(null);
+  const [taxPaymentForm, setTaxPaymentForm] = useState({ amount: '', payment_date: '', quarter: '1', payment_method: '', confirmation_number: '', notes: '' });
+  const [confirmDeleteTaxPayment, setConfirmDeleteTaxPayment] = useState<number | null>(null);
+
+  // 1099 state
+  const [reconciliation, setReconciliation] = useState<Reconciliation1099 | null>(null);
+  const [show1099Form, setShow1099Form] = useState(false);
+  const [editing1099, setEditing1099] = useState<number | null>(null);
+  const [form1099, setForm1099] = useState({ payer_name: '', payer_tin_last4: '', expected_amount: '', notes: '' });
+  const [receivedInput, setReceivedInput] = useState<{ id: number; amount: string } | null>(null);
+  const [confirmDelete1099, setConfirmDelete1099] = useState<number | null>(null);
+
   useEffect(() => {
-    Promise.all([api.getInvoices(), api.getInvoicePeriods(), api.getInvoiceConfig(), api.getTaxSummary(new Date().getFullYear())])
-      .then(([inv, per, cfg, tax]) => {
+    Promise.all([api.getInvoices(), api.getInvoicePeriods(), api.getInvoiceConfig(), api.getTaxSummary(new Date().getFullYear()), api.get1099Reconciliation(new Date().getFullYear())])
+      .then(([inv, per, cfg, tax, recon]) => {
         setInvoices(inv);
         setPeriods(per);
         setConfig(cfg);
         setTaxSummary(tax);
+        setReconciliation(recon);
         if (per.length > 0) setSelectedPeriod(`${per[0].start}|${per[0].end}`);
       })
       .catch((err) => setError(err.message))
@@ -37,7 +52,13 @@ export function InvoicesPage() {
 
   useEffect(() => {
     api.getTaxSummary(taxYear).then(setTaxSummary).catch(() => {});
+    api.get1099Reconciliation(taxYear).then(setReconciliation).catch(() => {});
   }, [taxYear]);
+
+  function refreshTaxData() {
+    api.getTaxSummary(taxYear).then(setTaxSummary).catch(() => {});
+    api.get1099Reconciliation(taxYear).then(setReconciliation).catch(() => {});
+  }
 
   async function handlePreview() {
     const [start, end] = selectedPeriod.split('|');
@@ -66,7 +87,6 @@ export function InvoicesPage() {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error || 'Failed to generate invoice');
       }
-      // Download the PDF
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -77,7 +97,6 @@ export function InvoicesPage() {
       a.click();
       URL.revokeObjectURL(url);
 
-      // Refresh invoice list
       const updated = await api.getInvoices();
       setInvoices(updated);
       setPreview(null);
@@ -106,8 +125,7 @@ export function InvoicesPage() {
       setInvoices((prev) => prev.map((i) => (i.id === id ? updated : i)));
       setPaymentInput(null);
       setConfirmUnpaid(null);
-      // Refresh tax summary
-      api.getTaxSummary(taxYear).then(setTaxSummary).catch(() => {});
+      refreshTaxData();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update payment');
     }
@@ -131,6 +149,145 @@ export function InvoicesPage() {
       setError(err instanceof Error ? err.message : 'Failed to save settings');
     } finally {
       setSavingConfig(false);
+    }
+  }
+
+  // Tax payment handlers
+  function openTaxPaymentForm(payment?: TaxPayment) {
+    if (payment) {
+      setEditingTaxPayment(payment);
+      setTaxPaymentForm({
+        amount: payment.amount.toString(),
+        payment_date: payment.payment_date,
+        quarter: payment.quarter.toString(),
+        payment_method: payment.payment_method,
+        confirmation_number: payment.confirmation_number,
+        notes: payment.notes,
+      });
+    } else {
+      setEditingTaxPayment(null);
+      setTaxPaymentForm({ amount: '', payment_date: new Date().toISOString().split('T')[0], quarter: '1', payment_method: '', confirmation_number: '', notes: '' });
+    }
+    setShowTaxPaymentForm(true);
+  }
+
+  async function handleSaveTaxPayment() {
+    try {
+      const data = {
+        amount: parseFloat(taxPaymentForm.amount),
+        payment_date: taxPaymentForm.payment_date,
+        quarter: parseInt(taxPaymentForm.quarter),
+        tax_year: taxYear,
+        payment_method: taxPaymentForm.payment_method,
+        confirmation_number: taxPaymentForm.confirmation_number,
+        notes: taxPaymentForm.notes,
+      };
+      if (editingTaxPayment) {
+        await api.updateTaxPayment(editingTaxPayment.id, data);
+      } else {
+        await api.createTaxPayment(data);
+      }
+      setShowTaxPaymentForm(false);
+      setEditingTaxPayment(null);
+      refreshTaxData();
+      setToast(editingTaxPayment ? 'Payment updated' : 'Payment added');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save tax payment');
+    }
+  }
+
+  async function handleDeleteTaxPayment(id: number) {
+    try {
+      await api.deleteTaxPayment(id);
+      setConfirmDeleteTaxPayment(null);
+      refreshTaxData();
+      setToast('Payment deleted');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete tax payment');
+    }
+  }
+
+  // 1099 handlers
+  function open1099Form(entry?: Reconciliation1099['expected'][0]) {
+    if (entry) {
+      setEditing1099(entry.id);
+      setForm1099({
+        payer_name: entry.payer_name,
+        payer_tin_last4: entry.payer_tin_last4,
+        expected_amount: entry.expected_amount.toString(),
+        notes: entry.notes,
+      });
+    } else {
+      setEditing1099(null);
+      setForm1099({ payer_name: '', payer_tin_last4: '', expected_amount: '', notes: '' });
+    }
+    setShow1099Form(true);
+  }
+
+  async function handleSave1099() {
+    try {
+      if (editing1099) {
+        await api.update1099(editing1099, {
+          payer_name: form1099.payer_name,
+          payer_tin_last4: form1099.payer_tin_last4,
+          expected_amount: parseFloat(form1099.expected_amount) || 0,
+          notes: form1099.notes,
+        });
+      } else {
+        await api.create1099({
+          tax_year: taxYear,
+          payer_name: form1099.payer_name,
+          payer_tin_last4: form1099.payer_tin_last4,
+          expected_amount: parseFloat(form1099.expected_amount) || 0,
+          notes: form1099.notes,
+        });
+      }
+      setShow1099Form(false);
+      setEditing1099(null);
+      refreshTaxData();
+      setToast(editing1099 ? '1099 updated' : '1099 added');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save 1099');
+    }
+  }
+
+  async function handleToggleReceived(entry: Reconciliation1099['expected'][0]) {
+    if (entry.received) {
+      // Mark as not received
+      try {
+        await api.update1099(entry.id, { received: 0, received_amount: null });
+        refreshTaxData();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to update 1099');
+      }
+    } else {
+      // Open received amount input
+      setReceivedInput({ id: entry.id, amount: entry.expected_amount.toString() });
+    }
+  }
+
+  async function handleSaveReceived() {
+    if (!receivedInput) return;
+    try {
+      await api.update1099(receivedInput.id, {
+        received: 1,
+        received_amount: parseFloat(receivedInput.amount) || 0,
+      });
+      setReceivedInput(null);
+      refreshTaxData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update 1099');
+    }
+  }
+
+  async function handleDelete1099(id: number) {
+    try {
+      await api.delete1099(id);
+      setConfirmDelete1099(null);
+      refreshTaxData();
+      setToast('1099 deleted');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete 1099');
     }
   }
 
@@ -312,14 +469,23 @@ export function InvoicesPage() {
         <div className={styles.section}>
           <div className={styles.taxHeader}>
             <h2 className={styles.sectionTitle}>Tax Overview</h2>
-            <select
-              className={styles.yearSelect}
-              value={taxYear}
-              onChange={(e) => setTaxYear(parseInt(e.target.value))}
-            >
-              <option value={new Date().getFullYear()}>{new Date().getFullYear()}</option>
-              <option value={new Date().getFullYear() - 1}>{new Date().getFullYear() - 1}</option>
-            </select>
+            <div className={styles.taxHeaderActions}>
+              <a
+                href={api.getTaxSummaryPdfUrl(taxYear)}
+                className={`${styles.btn} ${styles.btnPrimary} ${styles.btnSmall}`}
+                download
+              >
+                Download Schedule C Summary
+              </a>
+              <select
+                className={styles.yearSelect}
+                value={taxYear}
+                onChange={(e) => setTaxYear(parseInt(e.target.value))}
+              >
+                <option value={new Date().getFullYear()}>{new Date().getFullYear()}</option>
+                <option value={new Date().getFullYear() - 1}>{new Date().getFullYear() - 1}</option>
+              </select>
+            </div>
           </div>
 
           <div className={styles.taxStatsGrid}>
@@ -330,6 +496,10 @@ export function InvoicesPage() {
             <div className={styles.taxStatCard}>
               <div className={styles.taxStatValue}>${taxSummary.ytd.estimatedTax.toFixed(2)}</div>
               <div className={styles.taxStatLabel}>YTD Est. Tax</div>
+            </div>
+            <div className={styles.taxStatCard}>
+              <div className={styles.taxStatValue}>${taxSummary.ytd.taxPaid.toFixed(2)}</div>
+              <div className={styles.taxStatLabel}>YTD Tax Paid</div>
             </div>
             <div className={styles.taxStatCard}>
               <div className={styles.taxStatValue}>${taxSummary.ytd.unpaid.toFixed(2)}</div>
@@ -347,6 +517,7 @@ export function InvoicesPage() {
                   <th>Paid</th>
                   <th>Unpaid</th>
                   <th>Est. Tax</th>
+                  <th>Tax Paid</th>
                 </tr>
               </thead>
               <tbody>
@@ -358,6 +529,7 @@ export function InvoicesPage() {
                     <td>${q.paid.toFixed(2)}</td>
                     <td>${q.unpaid.toFixed(2)}</td>
                     <td>${q.estimatedTax.toFixed(2)}</td>
+                    <td>${q.taxPaid.toFixed(2)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -367,6 +539,233 @@ export function InvoicesPage() {
           <p className={styles.taxNote}>
             Tax estimate uses {taxSummary.taxRate}% (self-employment + federal income). Adjust in settings.
           </p>
+
+          {/* Estimated Tax Payments sub-section */}
+          <div className={styles.subSection}>
+            <div className={styles.subSectionHeader}>
+              <h3 className={styles.settingsSubtitle}>Estimated Tax Payments</h3>
+              <button className={`${styles.btn} ${styles.btnPrimary} ${styles.btnSmall}`} onClick={() => openTaxPaymentForm()}>
+                Add Payment
+              </button>
+            </div>
+
+            {showTaxPaymentForm && (
+              <div className={styles.inlineForm}>
+                <div className={styles.formRow}>
+                  <label className={styles.settingsLabel}>
+                    Amount
+                    <div className={styles.inputWithAffix}>
+                      <span className={styles.inputPrefix}>$</span>
+                      <input type="number" value={taxPaymentForm.amount} onChange={(e) => setTaxPaymentForm({ ...taxPaymentForm, amount: e.target.value })} step="0.01" />
+                    </div>
+                  </label>
+                  <label className={styles.settingsLabel}>
+                    Date
+                    <input type="date" value={taxPaymentForm.payment_date} onChange={(e) => setTaxPaymentForm({ ...taxPaymentForm, payment_date: e.target.value })} />
+                  </label>
+                  <label className={styles.settingsLabel}>
+                    Quarter
+                    <select value={taxPaymentForm.quarter} onChange={(e) => setTaxPaymentForm({ ...taxPaymentForm, quarter: e.target.value })}>
+                      <option value="1">Q1</option>
+                      <option value="2">Q2</option>
+                      <option value="3">Q3</option>
+                      <option value="4">Q4</option>
+                    </select>
+                  </label>
+                  <label className={styles.settingsLabel}>
+                    Method
+                    <input type="text" value={taxPaymentForm.payment_method} onChange={(e) => setTaxPaymentForm({ ...taxPaymentForm, payment_method: e.target.value })} placeholder="e.g. IRS Direct Pay" />
+                  </label>
+                  <label className={styles.settingsLabel}>
+                    Confirmation #
+                    <input type="text" value={taxPaymentForm.confirmation_number} onChange={(e) => setTaxPaymentForm({ ...taxPaymentForm, confirmation_number: e.target.value })} />
+                  </label>
+                </div>
+                <div className={styles.formActions}>
+                  <button className={`${styles.btn} ${styles.btnPrimary} ${styles.btnSmall}`} onClick={handleSaveTaxPayment} disabled={!taxPaymentForm.amount || !taxPaymentForm.payment_date}>
+                    {editingTaxPayment ? 'Update' : 'Save'}
+                  </button>
+                  <button className={`${styles.btn} ${styles.btnSmall}`} onClick={() => { setShowTaxPaymentForm(false); setEditingTaxPayment(null); }}>Cancel</button>
+                </div>
+              </div>
+            )}
+
+            {taxSummary.taxPayments.length > 0 && (
+              <div className={styles.tableScroll}>
+                <table className={styles.invoiceTable}>
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Quarter</th>
+                      <th>Amount</th>
+                      <th>Method</th>
+                      <th>Confirmation #</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {taxSummary.taxPayments.map((tp) => (
+                      <tr key={tp.id}>
+                        <td>{tp.payment_date}</td>
+                        <td>Q{tp.quarter}</td>
+                        <td>${tp.amount.toFixed(2)}</td>
+                        <td>{tp.payment_method || '—'}</td>
+                        <td>{tp.confirmation_number || '—'}</td>
+                        <td className={styles.actions}>
+                          <button className={styles.downloadLink} onClick={() => openTaxPaymentForm(tp)}>Edit</button>
+                          {confirmDeleteTaxPayment === tp.id ? (
+                            <span className={styles.confirmGroup}>
+                              <span className={styles.confirmText}>Delete?</span>
+                              <button className={styles.confirmYes} onClick={() => handleDeleteTaxPayment(tp.id)}>Yes</button>
+                              <button className={styles.confirmNo} onClick={() => setConfirmDeleteTaxPayment(null)}>No</button>
+                            </span>
+                          ) : (
+                            <button className={styles.deleteBtn} onClick={() => setConfirmDeleteTaxPayment(tp.id)}>Delete</button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 1099 Reconciliation Section */}
+      {reconciliation && (
+        <div className={styles.section}>
+          <div className={styles.taxHeader}>
+            <h2 className={styles.sectionTitle}>1099 Reconciliation</h2>
+            <button className={`${styles.btn} ${styles.btnPrimary} ${styles.btnSmall}`} onClick={() => open1099Form()}>
+              Add Expected 1099
+            </button>
+          </div>
+
+          <div className={styles.taxStatsGrid} style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+            <div className={styles.taxStatCard}>
+              <div className={styles.taxStatValue}>${reconciliation.totalExpected.toFixed(2)}</div>
+              <div className={styles.taxStatLabel}>Total Expected</div>
+            </div>
+            <div className={styles.taxStatCard}>
+              <div className={styles.taxStatValue}>${reconciliation.totalInvoiced.toFixed(2)}</div>
+              <div className={styles.taxStatLabel}>Total Invoiced</div>
+            </div>
+            <div className={styles.taxStatCard}>
+              <div className={styles.taxStatValue}>${reconciliation.totalReceived.toFixed(2)}</div>
+              <div className={styles.taxStatLabel}>Total Received</div>
+            </div>
+          </div>
+
+          {show1099Form && (
+            <div className={styles.inlineForm}>
+              <div className={styles.formRow}>
+                <label className={styles.settingsLabel}>
+                  Payer Name
+                  <input type="text" value={form1099.payer_name} onChange={(e) => setForm1099({ ...form1099, payer_name: e.target.value })} placeholder="e.g. Floburn Inc." />
+                </label>
+                <label className={styles.settingsLabel}>
+                  TIN (last 4)
+                  <input type="text" value={form1099.payer_tin_last4} onChange={(e) => setForm1099({ ...form1099, payer_tin_last4: e.target.value })} maxLength={4} />
+                </label>
+                <label className={styles.settingsLabel}>
+                  Expected Amount
+                  <div className={styles.inputWithAffix}>
+                    <span className={styles.inputPrefix}>$</span>
+                    <input type="number" value={form1099.expected_amount} onChange={(e) => setForm1099({ ...form1099, expected_amount: e.target.value })} step="0.01" />
+                  </div>
+                </label>
+                <label className={styles.settingsLabel}>
+                  Notes
+                  <input type="text" value={form1099.notes} onChange={(e) => setForm1099({ ...form1099, notes: e.target.value })} />
+                </label>
+              </div>
+              <div className={styles.formActions}>
+                <button className={`${styles.btn} ${styles.btnPrimary} ${styles.btnSmall}`} onClick={handleSave1099} disabled={!form1099.payer_name}>
+                  {editing1099 ? 'Update' : 'Save'}
+                </button>
+                <button className={`${styles.btn} ${styles.btnSmall}`} onClick={() => { setShow1099Form(false); setEditing1099(null); }}>Cancel</button>
+              </div>
+            </div>
+          )}
+
+          {reconciliation.expected.length === 0 ? (
+            <p className={styles.empty}>No expected 1099 forms added yet.</p>
+          ) : (
+            <div className={styles.tableScroll}>
+              <table className={styles.invoiceTable}>
+                <thead>
+                  <tr>
+                    <th>Payer</th>
+                    <th>TIN</th>
+                    <th>Expected</th>
+                    <th>Invoiced</th>
+                    <th>Received</th>
+                    <th>Status</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {reconciliation.expected.map((entry) => {
+                    const disc = reconciliation.discrepancies.find((d) => d.payer === entry.payer_name);
+                    const status = disc?.status ?? 'pending';
+                    const invoiced = reconciliation.actualByPayer[entry.payer_name] ?? 0;
+
+                    return (
+                      <tr key={entry.id}>
+                        <td>{entry.payer_name}</td>
+                        <td>{entry.payer_tin_last4 ? `***${entry.payer_tin_last4}` : '—'}</td>
+                        <td>${entry.expected_amount.toFixed(2)}</td>
+                        <td>${invoiced.toFixed(2)}</td>
+                        <td>
+                          {receivedInput?.id === entry.id ? (
+                            <span className={styles.paymentInputGroup}>
+                              <input
+                                type="number"
+                                className={styles.paymentAmountInput}
+                                value={receivedInput.amount}
+                                onChange={(e) => setReceivedInput({ ...receivedInput, amount: e.target.value })}
+                                step="0.01"
+                                autoFocus
+                              />
+                              <button className={styles.confirmYes} onClick={handleSaveReceived}>Save</button>
+                              <button className={styles.confirmNo} onClick={() => setReceivedInput(null)}>Cancel</button>
+                            </span>
+                          ) : entry.received && entry.received_amount != null ? (
+                            <button className={styles.badgePaid} onClick={() => handleToggleReceived(entry)}>
+                              ${entry.received_amount.toFixed(2)}
+                            </button>
+                          ) : (
+                            <button className={styles.badgeUnpaid} onClick={() => handleToggleReceived(entry)}>
+                              Pending
+                            </button>
+                          )}
+                        </td>
+                        <td>
+                          <span className={styles[`badge1099${status.charAt(0).toUpperCase() + status.slice(1)}`]}>
+                            {status.charAt(0).toUpperCase() + status.slice(1)}
+                          </span>
+                        </td>
+                        <td className={styles.actions}>
+                          <button className={styles.downloadLink} onClick={() => open1099Form(entry)}>Edit</button>
+                          {confirmDelete1099 === entry.id ? (
+                            <span className={styles.confirmGroup}>
+                              <span className={styles.confirmText}>Delete?</span>
+                              <button className={styles.confirmYes} onClick={() => handleDelete1099(entry.id)}>Yes</button>
+                              <button className={styles.confirmNo} onClick={() => setConfirmDelete1099(null)}>No</button>
+                            </span>
+                          ) : (
+                            <button className={styles.deleteBtn} onClick={() => setConfirmDelete1099(entry.id)}>Delete</button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 

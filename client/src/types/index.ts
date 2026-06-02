@@ -114,6 +114,19 @@ export interface QuarterData {
   paid: number;
   unpaid: number;
   estimatedTax: number;
+  taxPaid: number;
+}
+
+export interface TaxPayment {
+  id: number;
+  amount: number;
+  payment_date: string;
+  quarter: number;
+  tax_year: number;
+  payment_method: string;
+  confirmation_number: string;
+  notes: string;
+  created_at: string;
 }
 
 export interface TaxSummary {
@@ -121,6 +134,34 @@ export interface TaxSummary {
   taxRate: number;
   quarters: QuarterData[];
   ytd: Omit<QuarterData, 'quarter' | 'label'>;
+  taxPayments: TaxPayment[];
+}
+
+export interface Expected1099 {
+  id: number;
+  tax_year: number;
+  payer_name: string;
+  payer_tin_last4: string;
+  expected_amount: number;
+  received: number;
+  received_amount: number | null;
+  notes: string;
+  created_at: string;
+}
+
+export interface Reconciliation1099 {
+  expected: Expected1099[];
+  actualByPayer: Record<string, number>;
+  totalExpected: number;
+  totalInvoiced: number;
+  totalReceived: number;
+  discrepancies: Array<{
+    payer: string;
+    expected: number;
+    invoiced: number;
+    received: number | null;
+    status: 'matched' | 'discrepancy' | 'pending' | 'missing';
+  }>;
 }
 
 export interface InvoiceLineItem {

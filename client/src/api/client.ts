@@ -1,4 +1,4 @@
-import type { Session, Note, Commit, TestRun, TestRunDetail, PortfolioData, Invoice, InvoicePreview, BiweeklyPeriod, TaxSummary } from '../types';
+import type { Session, Note, Commit, TestRun, TestRunDetail, PortfolioData, Invoice, InvoicePreview, BiweeklyPeriod, TaxSummary, TaxPayment, Expected1099, Reconciliation1099 } from '../types';
 
 const BASE = '/api';
 
@@ -120,5 +120,49 @@ export const api = {
 
   getTaxSummary(year: number): Promise<TaxSummary> {
     return request(`/invoices/tax-summary?year=${year}`);
+  },
+
+  getTaxSummaryPdfUrl(year: number): string {
+    return `${BASE}/invoices/tax-summary/pdf?year=${year}`;
+  },
+
+  createTaxPayment(payment: Omit<TaxPayment, 'id' | 'created_at'>): Promise<TaxPayment> {
+    return request('/invoices/tax-payments', {
+      method: 'POST',
+      body: JSON.stringify(payment),
+    });
+  },
+
+  updateTaxPayment(id: number, payment: Partial<TaxPayment>): Promise<TaxPayment> {
+    return request(`/invoices/tax-payments/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payment),
+    });
+  },
+
+  deleteTaxPayment(id: number): Promise<void> {
+    return request(`/invoices/tax-payments/${id}`, { method: 'DELETE' });
+  },
+
+  get1099Reconciliation(year: number): Promise<Reconciliation1099> {
+    return request(`/invoices/1099s?year=${year}`);
+  },
+
+  create1099(data: { tax_year: number; payer_name: string; payer_tin_last4?: string; expected_amount?: number; notes?: string }): Promise<Expected1099> {
+    return request('/invoices/1099s', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  update1099(id: number, data: Partial<Expected1099>): Promise<Expected1099> {
+    return request(`/invoices/1099s/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  delete1099(id: number): Promise<void> {
+    return request(`/invoices/1099s/${id}`, { method: 'DELETE' });
   },
 };

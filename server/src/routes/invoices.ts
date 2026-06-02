@@ -317,63 +317,466 @@ router.get('/preview', (req, res) => {
   }
 });
 
+interface TaxPaymentRow {
+  id: number;
+  amount: number;
+  payment_date: string;
+  quarter: number;
+  tax_year: number;
+  payment_method: string;
+  confirmation_number: string;
+  notes: string;
+  created_at: string;
+}
+
+interface Expected1099Row {
+  id: number;
+  tax_year: number;
+  payer_name: string;
+  payer_tin_last4: string;
+  expected_amount: number;
+  received: number;
+  received_amount: number | null;
+  notes: string;
+  created_at: string;
+}
+
+function getTaxSummaryData(year: number) {
+  const config = getConfig();
+  const taxRate = parseFloat(config.tax_rate) || 30;
+
+  const invoices = db.prepare(
+    `SELECT total_hours, total_amount, paid_amount, period_start
+     FROM invoices
+     WHERE period_start >= ? AND period_start < ?`
+  ).all(`${year}-01-01`, `${year + 1}-01-01`) as (Pick<InvoiceRow, 'total_hours' | 'total_amount' | 'paid_amount'> & { period_start: string })[];
+
+  const taxPayments = db.prepare(
+    `SELECT * FROM tax_payments WHERE tax_year = ? ORDER BY payment_date`
+  ).all(year) as TaxPaymentRow[];
+
+  const quarterLabels = ['Q1 (Jan–Mar)', 'Q2 (Apr–Jun)', 'Q3 (Jul–Sep)', 'Q4 (Oct–Dec)'];
+  const quarters = quarterLabels.map((label, i) => ({
+    quarter: i + 1,
+    label,
+    hours: 0,
+    earned: 0,
+    paid: 0,
+    unpaid: 0,
+    estimatedTax: 0,
+    taxPaid: 0,
+  }));
+
+  for (const inv of invoices) {
+    const month = new Date(inv.period_start).getMonth();
+    const qi = Math.floor(month / 3);
+    const q = quarters[qi];
+    q.hours += inv.total_hours;
+    q.earned += inv.total_amount;
+    q.paid += inv.paid_amount;
+    q.unpaid += inv.total_amount - inv.paid_amount;
+  }
+
+  for (const tp of taxPayments) {
+    const qi = tp.quarter - 1;
+    quarters[qi].taxPaid += tp.amount;
+  }
+
+  const ytd = { hours: 0, earned: 0, paid: 0, unpaid: 0, estimatedTax: 0, taxPaid: 0 };
+  for (const q of quarters) {
+    q.hours = Math.round(q.hours * 100) / 100;
+    q.earned = Math.round(q.earned * 100) / 100;
+    q.paid = Math.round(q.paid * 100) / 100;
+    q.unpaid = Math.round(q.unpaid * 100) / 100;
+    q.estimatedTax = Math.round(q.earned * (taxRate / 100) * 100) / 100;
+    q.taxPaid = Math.round(q.taxPaid * 100) / 100;
+    ytd.hours += q.hours;
+    ytd.earned += q.earned;
+    ytd.paid += q.paid;
+    ytd.unpaid += q.unpaid;
+    ytd.taxPaid += q.taxPaid;
+  }
+  ytd.hours = Math.round(ytd.hours * 100) / 100;
+  ytd.earned = Math.round(ytd.earned * 100) / 100;
+  ytd.paid = Math.round(ytd.paid * 100) / 100;
+  ytd.unpaid = Math.round(ytd.unpaid * 100) / 100;
+  ytd.estimatedTax = Math.round(ytd.earned * (taxRate / 100) * 100) / 100;
+  ytd.taxPaid = Math.round(ytd.taxPaid * 100) / 100;
+
+  return { year, taxRate, quarters, ytd, taxPayments, config };
+}
+
 // GET /api/invoices/tax-summary — quarterly tax breakdown
 router.get('/tax-summary', (req, res) => {
   try {
     const year = parseInt(req.query.year as string) || new Date().getFullYear();
-    const config = getConfig();
-    const taxRate = parseFloat(config.tax_rate) || 30;
-
-    const invoices = db.prepare(
-      `SELECT total_hours, total_amount, paid_amount, period_start
-       FROM invoices
-       WHERE period_start >= ? AND period_start < ?`
-    ).all(`${year}-01-01`, `${year + 1}-01-01`) as (Pick<InvoiceRow, 'total_hours' | 'total_amount' | 'paid_amount'> & { period_start: string })[];
-
-    const quarterLabels = ['Q1 (Jan–Mar)', 'Q2 (Apr–Jun)', 'Q3 (Jul–Sep)', 'Q4 (Oct–Dec)'];
-    const quarters = quarterLabels.map((label, i) => ({
-      quarter: i + 1,
-      label,
-      hours: 0,
-      earned: 0,
-      paid: 0,
-      unpaid: 0,
-      estimatedTax: 0,
-    }));
-
-    for (const inv of invoices) {
-      const month = new Date(inv.period_start).getMonth(); // 0-based
-      const qi = Math.floor(month / 3);
-      const q = quarters[qi];
-      q.hours += inv.total_hours;
-      q.earned += inv.total_amount;
-      q.paid += inv.paid_amount;
-      q.unpaid += inv.total_amount - inv.paid_amount;
-    }
-
-    // Round and compute tax
-    const ytd = { hours: 0, earned: 0, paid: 0, unpaid: 0, estimatedTax: 0 };
-    for (const q of quarters) {
-      q.hours = Math.round(q.hours * 100) / 100;
-      q.earned = Math.round(q.earned * 100) / 100;
-      q.paid = Math.round(q.paid * 100) / 100;
-      q.unpaid = Math.round(q.unpaid * 100) / 100;
-      q.estimatedTax = Math.round(q.earned * (taxRate / 100) * 100) / 100;
-      ytd.hours += q.hours;
-      ytd.earned += q.earned;
-      ytd.paid += q.paid;
-      ytd.unpaid += q.unpaid;
-    }
-    ytd.hours = Math.round(ytd.hours * 100) / 100;
-    ytd.earned = Math.round(ytd.earned * 100) / 100;
-    ytd.paid = Math.round(ytd.paid * 100) / 100;
-    ytd.unpaid = Math.round(ytd.unpaid * 100) / 100;
-    ytd.estimatedTax = Math.round(ytd.earned * (taxRate / 100) * 100) / 100;
-
-    res.json({ year, taxRate, quarters, ytd });
+    const { config: _config, ...summary } = getTaxSummaryData(year);
+    res.json(summary);
   } catch (err) {
     console.error('Failed to get tax summary:', err);
     res.status(500).json({ error: 'Could not get tax summary' });
+  }
+});
+
+// GET /api/invoices/tax-summary/pdf — Schedule C reference PDF
+router.get('/tax-summary/pdf', (req, res) => {
+  try {
+    const year = parseInt(req.query.year as string) || new Date().getFullYear();
+    const { config, taxRate, quarters, ytd, taxPayments } = getTaxSummaryData(year);
+
+    const doc = new PDFDocument({ margin: 50, size: 'LETTER' });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="Tax-Summary-${year}.pdf"`);
+    doc.pipe(res);
+
+    // Header bar
+    doc.rect(0, 0, doc.page.width, 80).fill('#1e293b');
+    doc.fontSize(22).font('Helvetica-Bold').fillColor('#ffffff')
+      .text(`Annual Tax Summary — ${year}`, 50, 20);
+    doc.fontSize(12).font('Helvetica').fillColor('#94a3b8')
+      .text('Schedule C Reference', 50, 48);
+    doc.moveDown(2);
+
+    // Taxpayer info
+    const y1 = 100;
+    doc.fillColor('#1e293b').fontSize(11).font('Helvetica-Bold')
+      .text('Taxpayer Information', 50, y1);
+    doc.moveDown(0.3);
+    doc.fontSize(10).font('Helvetica').fillColor('#333');
+    if (config.contractor_name) doc.text(config.contractor_name);
+    if (config.contractor_address) doc.text(config.contractor_address);
+    if (config.contractor_city_state_zip) doc.text(config.contractor_city_state_zip);
+    if (config.contractor_tax_id_last4) doc.text(`TIN (last 4): ***-**-${config.contractor_tax_id_last4}`);
+    doc.moveDown(1);
+
+    // Revenue summary table
+    doc.fillColor('#1e293b').fontSize(11).font('Helvetica-Bold')
+      .text('Revenue Summary');
+    doc.moveDown(0.5);
+
+    const colQ = 50;
+    const colInv = 180;
+    const colPd = 300;
+    const colUnp = 420;
+
+    doc.rect(colQ, doc.y, 462, 18).fill('#e2e8f0');
+    const rhy = doc.y + 4;
+    doc.fontSize(8).font('Helvetica-Bold').fillColor('#1e293b');
+    doc.text('Quarter', colQ + 4, rhy, { width: 126 });
+    doc.text('Invoiced', colInv + 4, rhy, { width: 116 });
+    doc.text('Paid', colPd + 4, rhy, { width: 116 });
+    doc.text('Unpaid', colUnp + 4, rhy, { width: 88 });
+    doc.y = rhy + 18;
+
+    doc.font('Helvetica').fontSize(8).fillColor('#333');
+    for (const q of quarters) {
+      const ry = doc.y + 2;
+      doc.text(q.label, colQ + 4, ry, { width: 126 });
+      doc.text(`$${q.earned.toFixed(2)}`, colInv + 4, ry, { width: 116 });
+      doc.text(`$${q.paid.toFixed(2)}`, colPd + 4, ry, { width: 116 });
+      doc.text(`$${q.unpaid.toFixed(2)}`, colUnp + 4, ry, { width: 88 });
+      doc.y = ry + 14;
+    }
+    // Totals
+    doc.rect(colQ, doc.y, 462, 18).fill('#1e293b');
+    const tty = doc.y + 4;
+    doc.fontSize(8).font('Helvetica-Bold').fillColor('#ffffff');
+    doc.text('TOTAL', colQ + 4, tty, { width: 126 });
+    doc.text(`$${ytd.earned.toFixed(2)}`, colInv + 4, tty, { width: 116 });
+    doc.text(`$${ytd.paid.toFixed(2)}`, colPd + 4, tty, { width: 116 });
+    doc.text(`$${ytd.unpaid.toFixed(2)}`, colUnp + 4, tty, { width: 88 });
+    doc.y = tty + 22;
+    doc.moveDown(1);
+
+    // Estimated tax payments table
+    doc.fillColor('#1e293b').fontSize(11).font('Helvetica-Bold')
+      .text('Estimated Tax Payments (1040-ES)');
+    doc.moveDown(0.5);
+
+    if (taxPayments.length === 0) {
+      doc.fontSize(9).font('Helvetica').fillColor('#666')
+        .text('No estimated tax payments recorded for this year.');
+    } else {
+      const cpDate = 50;
+      const cpQtr = 150;
+      const cpAmt = 210;
+      const cpMeth = 300;
+      const cpConf = 400;
+
+      doc.rect(cpDate, doc.y, 462, 18).fill('#e2e8f0');
+      const phy = doc.y + 4;
+      doc.fontSize(8).font('Helvetica-Bold').fillColor('#1e293b');
+      doc.text('Date', cpDate + 4, phy, { width: 96 });
+      doc.text('Quarter', cpQtr + 4, phy, { width: 56 });
+      doc.text('Amount', cpAmt + 4, phy, { width: 86 });
+      doc.text('Method', cpMeth + 4, phy, { width: 96 });
+      doc.text('Confirmation #', cpConf + 4, phy, { width: 108 });
+      doc.y = phy + 18;
+
+      doc.font('Helvetica').fontSize(8).fillColor('#333');
+      for (const tp of taxPayments) {
+        const ry = doc.y + 2;
+        doc.text(tp.payment_date, cpDate + 4, ry, { width: 96 });
+        doc.text(`Q${tp.quarter}`, cpQtr + 4, ry, { width: 56 });
+        doc.text(`$${tp.amount.toFixed(2)}`, cpAmt + 4, ry, { width: 86 });
+        doc.text(tp.payment_method || '—', cpMeth + 4, ry, { width: 96 });
+        doc.text(tp.confirmation_number || '—', cpConf + 4, ry, { width: 108 });
+        doc.y = ry + 14;
+      }
+      // Payment total
+      doc.rect(cpDate, doc.y, 462, 18).fill('#1e293b');
+      const ptty = doc.y + 4;
+      doc.fontSize(8).font('Helvetica-Bold').fillColor('#ffffff');
+      doc.text('TOTAL', cpDate + 4, ptty, { width: 156 });
+      doc.text(`$${ytd.taxPaid.toFixed(2)}`, cpAmt + 4, ptty, { width: 86 });
+      doc.y = ptty + 22;
+    }
+    doc.moveDown(1);
+
+    // Schedule C line items
+    doc.fillColor('#1e293b').fontSize(11).font('Helvetica-Bold')
+      .text('Schedule C Reference Lines');
+    doc.moveDown(0.5);
+
+    const netProfit = ytd.earned;
+    doc.fontSize(10).font('Helvetica').fillColor('#333');
+    doc.text(`Line 1 — Gross receipts: $${ytd.earned.toFixed(2)}`);
+    doc.text(`Line 7 — Gross income: $${ytd.earned.toFixed(2)}`);
+    doc.text('Line 28 — Total expenses: $0.00 (expenses not tracked in DayLog)');
+    doc.text(`Line 31 — Net profit: $${netProfit.toFixed(2)}`);
+    doc.moveDown(1);
+
+    // SE tax estimate
+    doc.fillColor('#1e293b').fontSize(11).font('Helvetica-Bold')
+      .text('Self-Employment Tax Estimate');
+    doc.moveDown(0.5);
+
+    const seTaxable = Math.round(netProfit * 0.9235 * 100) / 100;
+    const seTax = Math.round(seTaxable * 0.153 * 100) / 100;
+    const federalEstimate = Math.round(netProfit * ((taxRate - 15.3) / 100) * 100) / 100;
+    const totalEstimated = Math.round((seTax + Math.max(0, federalEstimate)) * 100) / 100;
+    const remaining = Math.round((totalEstimated - ytd.taxPaid) * 100) / 100;
+
+    doc.fontSize(10).font('Helvetica').fillColor('#333');
+    doc.text(`SE taxable income (92.35% of net): $${seTaxable.toFixed(2)}`);
+    doc.text(`Self-employment tax (15.3%): $${seTax.toFixed(2)}`);
+    doc.text(`Federal income tax estimate (${Math.max(0, taxRate - 15.3).toFixed(1)}%): $${Math.max(0, federalEstimate).toFixed(2)}`);
+    doc.moveDown(0.3);
+    doc.font('Helvetica-Bold');
+    doc.text(`Total estimated tax liability: $${totalEstimated.toFixed(2)}`);
+    doc.text(`Total estimated payments made: $${ytd.taxPaid.toFixed(2)}`);
+    doc.text(remaining > 0
+      ? `Remaining to pay: $${remaining.toFixed(2)}`
+      : `Overpaid by: $${Math.abs(remaining).toFixed(2)}`);
+    doc.moveDown(2);
+
+    // Footer
+    doc.fontSize(8).font('Helvetica').fillColor('#999')
+      .text('For reference only — consult a tax professional.', 50, undefined, { align: 'center' });
+
+    doc.end();
+  } catch (err) {
+    console.error('Failed to generate tax summary PDF:', err);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Could not generate tax summary PDF' });
+    }
+  }
+});
+
+// POST /api/invoices/tax-payments — create tax payment
+router.post('/tax-payments', (req, res) => {
+  try {
+    const { amount, payment_date, quarter, tax_year, payment_method, confirmation_number, notes } = req.body;
+    if (!amount || !payment_date || !quarter || !tax_year) {
+      res.status(400).json({ error: 'amount, payment_date, quarter, and tax_year are required' });
+      return;
+    }
+    const result = db.prepare(
+      `INSERT INTO tax_payments (amount, payment_date, quarter, tax_year, payment_method, confirmation_number, notes)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    ).run(amount, payment_date, quarter, tax_year, payment_method || '', confirmation_number || '', notes || '');
+    const payment = db.prepare('SELECT * FROM tax_payments WHERE id = ?').get(result.lastInsertRowid) as TaxPaymentRow;
+    res.json(payment);
+  } catch (err) {
+    console.error('Failed to create tax payment:', err);
+    res.status(500).json({ error: 'Could not create tax payment' });
+  }
+});
+
+// PUT /api/invoices/tax-payments/:id — update tax payment
+router.put('/tax-payments/:id', (req, res) => {
+  try {
+    const { amount, payment_date, quarter, tax_year, payment_method, confirmation_number, notes } = req.body;
+    const existing = db.prepare('SELECT * FROM tax_payments WHERE id = ?').get(req.params.id) as TaxPaymentRow | undefined;
+    if (!existing) {
+      res.status(404).json({ error: 'Tax payment not found' });
+      return;
+    }
+    db.prepare(
+      `UPDATE tax_payments SET amount = ?, payment_date = ?, quarter = ?, tax_year = ?, payment_method = ?, confirmation_number = ?, notes = ?
+       WHERE id = ?`
+    ).run(
+      amount ?? existing.amount,
+      payment_date ?? existing.payment_date,
+      quarter ?? existing.quarter,
+      tax_year ?? existing.tax_year,
+      payment_method ?? existing.payment_method,
+      confirmation_number ?? existing.confirmation_number,
+      notes ?? existing.notes,
+      req.params.id,
+    );
+    const updated = db.prepare('SELECT * FROM tax_payments WHERE id = ?').get(req.params.id) as TaxPaymentRow;
+    res.json(updated);
+  } catch (err) {
+    console.error('Failed to update tax payment:', err);
+    res.status(500).json({ error: 'Could not update tax payment' });
+  }
+});
+
+// DELETE /api/invoices/tax-payments/:id — delete tax payment
+router.delete('/tax-payments/:id', (req, res) => {
+  try {
+    const result = db.prepare('DELETE FROM tax_payments WHERE id = ?').run(req.params.id);
+    if (result.changes === 0) {
+      res.status(404).json({ error: 'Tax payment not found' });
+      return;
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Failed to delete tax payment:', err);
+    res.status(500).json({ error: 'Could not delete tax payment' });
+  }
+});
+
+// GET /api/invoices/1099s — list expected 1099s with reconciliation
+router.get('/1099s', (req, res) => {
+  try {
+    const year = parseInt(req.query.year as string) || new Date().getFullYear();
+    const expected = db.prepare(
+      'SELECT * FROM expected_1099s WHERE tax_year = ? ORDER BY payer_name'
+    ).all(year) as Expected1099Row[];
+
+    // Get actual invoiced amounts grouped by client (single-client for now)
+    const config = getConfig();
+    const clientName = config.client_company || config.client_name || 'Unknown';
+    const invoiceTotal = db.prepare(
+      `SELECT COALESCE(SUM(total_amount), 0) as total FROM invoices
+       WHERE period_start >= ? AND period_start < ?`
+    ).get(`${year}-01-01`, `${year + 1}-01-01`) as { total: number };
+
+    const actualByPayer: Record<string, number> = {};
+    actualByPayer[clientName] = Math.round(invoiceTotal.total * 100) / 100;
+
+    let totalExpected = 0;
+    let totalReceived = 0;
+    const discrepancies: Array<{
+      payer: string;
+      expected: number;
+      invoiced: number;
+      received: number | null;
+      status: 'matched' | 'discrepancy' | 'pending' | 'missing';
+    }> = [];
+
+    for (const e of expected) {
+      totalExpected += e.expected_amount;
+      if (e.received && e.received_amount != null) {
+        totalReceived += e.received_amount;
+      }
+      const invoiced = actualByPayer[e.payer_name] ?? 0;
+      let status: 'matched' | 'discrepancy' | 'pending' | 'missing';
+      if (!e.received) {
+        status = invoiced === 0 ? 'missing' : 'pending';
+      } else if (e.received_amount != null && Math.abs(e.received_amount - invoiced) < 0.01) {
+        status = 'matched';
+      } else {
+        status = 'discrepancy';
+      }
+      discrepancies.push({
+        payer: e.payer_name,
+        expected: e.expected_amount,
+        invoiced,
+        received: e.received ? e.received_amount : null,
+        status,
+      });
+    }
+
+    const totalInvoiced = Object.values(actualByPayer).reduce((s, v) => s + v, 0);
+
+    res.json({
+      expected,
+      actualByPayer,
+      totalExpected: Math.round(totalExpected * 100) / 100,
+      totalInvoiced: Math.round(totalInvoiced * 100) / 100,
+      totalReceived: Math.round(totalReceived * 100) / 100,
+      discrepancies,
+    });
+  } catch (err) {
+    console.error('Failed to get 1099 reconciliation:', err);
+    res.status(500).json({ error: 'Could not get 1099 reconciliation' });
+  }
+});
+
+// POST /api/invoices/1099s — create expected 1099
+router.post('/1099s', (req, res) => {
+  try {
+    const { tax_year, payer_name, payer_tin_last4, expected_amount, notes } = req.body;
+    if (!tax_year || !payer_name) {
+      res.status(400).json({ error: 'tax_year and payer_name are required' });
+      return;
+    }
+    const result = db.prepare(
+      `INSERT INTO expected_1099s (tax_year, payer_name, payer_tin_last4, expected_amount, notes)
+       VALUES (?, ?, ?, ?, ?)`
+    ).run(tax_year, payer_name, payer_tin_last4 || '', expected_amount || 0, notes || '');
+    const row = db.prepare('SELECT * FROM expected_1099s WHERE id = ?').get(result.lastInsertRowid) as Expected1099Row;
+    res.json(row);
+  } catch (err) {
+    console.error('Failed to create expected 1099:', err);
+    res.status(500).json({ error: 'Could not create expected 1099' });
+  }
+});
+
+// PUT /api/invoices/1099s/:id — update expected 1099
+router.put('/1099s/:id', (req, res) => {
+  try {
+    const existing = db.prepare('SELECT * FROM expected_1099s WHERE id = ?').get(req.params.id) as Expected1099Row | undefined;
+    if (!existing) {
+      res.status(404).json({ error: 'Expected 1099 not found' });
+      return;
+    }
+    const { payer_name, payer_tin_last4, expected_amount, received, received_amount, notes } = req.body;
+    db.prepare(
+      `UPDATE expected_1099s SET payer_name = ?, payer_tin_last4 = ?, expected_amount = ?, received = ?, received_amount = ?, notes = ?
+       WHERE id = ?`
+    ).run(
+      payer_name ?? existing.payer_name,
+      payer_tin_last4 ?? existing.payer_tin_last4,
+      expected_amount ?? existing.expected_amount,
+      received ?? existing.received,
+      received_amount !== undefined ? received_amount : existing.received_amount,
+      notes ?? existing.notes,
+      req.params.id,
+    );
+    const updated = db.prepare('SELECT * FROM expected_1099s WHERE id = ?').get(req.params.id) as Expected1099Row;
+    res.json(updated);
+  } catch (err) {
+    console.error('Failed to update expected 1099:', err);
+    res.status(500).json({ error: 'Could not update expected 1099' });
+  }
+});
+
+// DELETE /api/invoices/1099s/:id — delete expected 1099
+router.delete('/1099s/:id', (req, res) => {
+  try {
+    const result = db.prepare('DELETE FROM expected_1099s WHERE id = ?').run(req.params.id);
+    if (result.changes === 0) {
+      res.status(404).json({ error: 'Expected 1099 not found' });
+      return;
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Failed to delete expected 1099:', err);
+    res.status(500).json({ error: 'Could not delete expected 1099' });
   }
 });
 
