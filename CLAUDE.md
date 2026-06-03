@@ -245,21 +245,69 @@ Three fixes to invoice PDF generation in `server/src/routes/invoices.ts`:
 
 ---
 
+## LLC Formation & Business Setup (2026-06-03) — Done
+
+Luke formed **LM Systems Consulting LLC** on June 3, 2026.
+
+### What was completed:
+- **LLC filed** with Washington Secretary of State (sos.wa.gov) — $180 filing fee
+- **EIN obtained** from IRS (free, online)
+- **LinkedIn profile created** — linkedin.com/in/luke-martinez-0b3a27413
+  - Title: Software Developer at LM Systems Consulting LLC
+  - Set to "Open to Work" for contract/freelance/remote
+- **Resume created** — PDF with dark navy header, QR code linking to LinkedIn, and professional layout
+  - Saved at `/home/luke/Documents/Luke_Martinez_Resume.pdf`
+  - Generator script at `/home/luke/Documents/generate-resume.mjs` (uses pdfkit + qrcode)
+  - QR code npm package installed at `/home/luke/Documents/node_modules/`
+  - Markdown version at `/home/luke/Documents/Luke_Martinez_Resume.md`
+
+### Business Details:
+- **Business name:** LM Systems Consulting LLC
+- **Owner:** Luke Martinez (sole member, single-member LLC)
+- **Email:** lukemartinez.sm@gmail.com
+- **Phone:** (509)-759-5948
+- **Location:** Yakima, WA
+- **Nature of business:** Software development and quality assurance consulting services
+- **Client:** Floburn Inc. / Voxcar (current, $20/hr)
+
+### Resources identified for business growth:
+- **SCORE Yakima Valley** — Free business mentoring (yakimavalley.score.org)
+- **SBDC at YCDA** — Free business advising, 2520 W. Washington Ave Suite 1, Yakima. Phone: 509-575-1140
+- **Job platforms:** ReactJobs.io, Arc.dev, Indeed, Glassdoor, ZipRecruiter, Upwork, We Work Remotely
+- **Networking:** Yakima Dev Meetup, Yakima Tech Connect, North Town Shared Space (32 N Front St)
+
+### Still to do:
+- Open a business bank account (bring EIN + LLC confirmation)
+- Write a simple operating agreement (SBDC can help)
+- Set up Upwork profile to find additional contract work
+- Add profile photo to LinkedIn
+- Add About/Summary section to LinkedIn
+- Order business cards
+
+---
+
 ## Next Session Plan
 
-Brainstorm and plan features to support transitioning from sole proprietor to LLC and expanding to multiple clients:
+Design and generate a **business card** for LM Systems Consulting LLC using pdfkit (similar to the resume generator).
 
-- **Multi-client support** — Separate invoices, rates, and time tracking per client (currently single-client only)
+Card should include:
+- Luke Martinez
+- Software Developer & QA Engineer
+- LM Systems Consulting LLC
+- (509)-759-5948
+- lukemartinez.sm@gmail.com
+- Yakima, WA
+- QR code linking to LinkedIn (or future portfolio site)
+- Dark navy color scheme matching the resume design
+
+Consider standard business card dimensions (3.5" x 2") and print-ready layout. Explore design options and templates.
+
+### Future ideas:
+- **Portfolio website** — Build a simple site to showcase completed projects, link QR code to it instead of LinkedIn
+- **Multi-client support in DayLog** — Separate invoices, rates, and time tracking per client
 - **Client management** — Client profiles with company info, contact details, contracts, payment terms
-- **Multi-rate billing** — Different hourly rates per client or per project
-- **Proposal/estimate generation** — Create and send service proposals to prospective clients
-- **Contract tracking** — Store contract terms, start/end dates, renewal reminders
 - **Business dashboard** — Revenue across clients, utilization rate, pipeline visibility
-- **LLC-specific tax features** — Quarterly estimated taxes across multiple revenue streams, business expense tracking for Schedule C
-- **1099 improvements** — Multi-payer 1099 reconciliation now that there will be multiple clients
 - **Branding** — Professional invoice templates with LLC branding, custom logo support
-
-Think through what the data model changes look like (client_id on invoices/sessions, clients table, etc.) and what the phased rollout should be.
 
 ---
 
