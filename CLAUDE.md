@@ -252,6 +252,7 @@ Luke formed **LM Systems Consulting LLC** on June 3, 2026.
 ### What was completed:
 - **LLC filed** with Washington Secretary of State (sos.wa.gov) — $180 filing fee
 - **EIN obtained** from IRS (free, online)
+- **UBI number obtained** from Washington State Department of Revenue (state business license)
 - **LinkedIn profile created** — linkedin.com/in/luke-martinez-0b3a27413
   - Title: Software Developer at LM Systems Consulting LLC
   - Set to "Open to Work" for contract/freelance/remote
@@ -282,25 +283,83 @@ Luke formed **LM Systems Consulting LLC** on June 3, 2026.
 - Set up Upwork profile to find additional contract work
 - Add profile photo to LinkedIn
 - Add About/Summary section to LinkedIn
-- Order business cards
+- Order business cards (design done — see printing section below)
+
+---
+
+## Business Card (2026-06-03) — Done
+
+Designed and generated a business card for LM Systems Consulting LLC, inspired by Paul Allen's card from American Psycho.
+
+### Design:
+- **Style:** Minimalist, Paul Allen aesthetic — Garamond font, all caps, generous whitespace
+- **Stock:** Colorplan Natural 540gsm (eggshell, same as the movie)
+- **Ink:** All black, raised/thermographic printing
+- **Layout:** QR code (LinkedIn) upper-left, company name + subtitle upper-right, name + title centered, contact info bottom-center
+- **Size:** Standard 3.5" x 2" (252 x 144 pt)
+- **Font:** EB Garamond (open-source Garamond from Google Fonts)
+
+### Files:
+- **PDF:** `/home/luke/Documents/LM_Systems_Business_Card.pdf`
+- **Generator:** `/home/luke/Documents/generate-business-card.mjs` (uses pdfkit + qrcode)
+- **Fonts:** `/home/luke/Documents/fonts/EBGaramond-Regular.ttf`, `EBGaramond-Italic.ttf`
+
+### Printing:
+- **Recommended vendor:** [After Hours Creative Studio](https://www.afterhourscreativestudio.com/colorplan-duplex-business-cards-540gsm.html) — Colorplan 540gsm business cards with foil/thermographic options (UK-based, ships internationally)
+- **Alternative:** Buy Colorplan Natural 540gsm sheets from [Legion Paper](https://legionpaper.com/colorplan) or [TALAS](https://www.talasonline.com/Colorplan-Paper), take to a local print shop for thermographic printing
+- **Specs to request:** Colorplan Natural 540gsm, black raised/thermographic ink, single-sided, 3.5" x 2"
+
+---
+
+## Freelance Platforms & Job Search (2026-06-05) — In Progress
+
+### Profiles set up:
+- **Upwork** — Profile complete, verified, $25/hr default rate. Skills: Software QA, Quality Assurance, React, TypeScript, Node.js, Playwright, Test Automation, Web Development, JavaScript, SQL, REST API, CSS
+- **ZipRecruiter** — Profile updated with QA/software development objective (replaced old machining cover letter)
+- **LinkedIn** — Active, applying to QA and developer roles
+- **micro1.ai** — Applied to QA Engineer & Product Support Expert role; AI interview pending (deadline Jun 7, 2026)
+
+### Applications submitted:
+- Upwork: Contract Full-Stack Engineer (React + Supabase) — $45/hr proposal
+- micro1: QA Engineer & Product Support Expert
+
+### Strategy:
+- Focus on **manual QA testing roles** (no live coding required) for immediate income
+- Search terms: "Manual QA tester", "QA analyst", "Bug testing", "Website testing", "UAT testing"
+- Platforms to use: Upwork, LinkedIn, Indeed, ZipRecruiter
+- Apply to 5-10 jobs per day across platforms
+
+---
+
+## Learning to Code (DAY-37 through DAY-40)
+
+Tracked in Linear. Luke has been directing development but needs to learn to write code independently for coding interviews and career growth.
+
+### Dependency Chain:
+```
+DAY-37  Learn TypeScript basics: variables, types, functions, if/else, loops (Week 1)
+  └── DAY-38  Learn array/object methods: filter, map, sort, find, reduce (Week 2)
+        └── DAY-39  Learn React basics: components, props, state, events (Week 3)
+              └── DAY-40  Build a small DayLog feature independently (Week 4)
+```
+
+### Approach:
+- Claude explains, Luke types the code
+- Practice with real DayLog data structures and components
+- Goal: pass live coding exercises in job interviews
 
 ---
 
 ## Next Session Plan
 
-Design and generate a **business card** for LM Systems Consulting LLC using pdfkit (similar to the resume generator).
-
-Card should include:
-- Luke Martinez
-- Software Developer & QA Engineer
-- LM Systems Consulting LLC
-- (509)-759-5948
-- lukemartinez.sm@gmail.com
-- Yakima, WA
-- QR code linking to LinkedIn (or future portfolio site)
-- Dark navy color scheme matching the resume design
-
-Consider standard business card dimensions (3.5" x 2") and print-ready layout. Explore design options and templates.
+### Still to do (business):
+- Order printed business cards (quote requested from After Hours Creative — matte black foil embossing on Colorplan Natural 540gsm)
+- Open a business bank account (bring EIN, LLC confirmation, and UBI number)
+- Write a simple operating agreement (SBDC can help)
+- Add profile photo to LinkedIn
+- Add About/Summary section to LinkedIn
+- Ask Jaime for a 2-3 sentence recommendation/testimonial
+- Keep applying to QA roles daily across all platforms
 
 ### Future ideas:
 - **Portfolio website** — Build a simple site to showcase completed projects, link QR code to it instead of LinkedIn
