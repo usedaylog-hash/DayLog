@@ -352,6 +352,10 @@ DAY-37  Learn TypeScript basics: variables, types, functions, if/else, loops (We
 
 ## Next Session Plan
 
+**Primary focus:** Start DAY-37 — Learn TypeScript basics. This is a teaching session where Claude explains concepts and Luke types the code. Begin with variables, types, functions, if/else, and loops. Create a practice file (e.g., `learning/basics.ts`) and work through exercises using real DayLog data concepts.
+
+**Secondary:** Continue applying to manual QA testing jobs on Upwork, LinkedIn, Indeed, and ZipRecruiter.
+
 ### Still to do (business):
 - Order printed business cards (quote requested from After Hours Creative — matte black foil embossing on Colorplan Natural 540gsm)
 - Open a business bank account (bring EIN, LLC confirmation, and UBI number)
