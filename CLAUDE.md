@@ -411,12 +411,18 @@ DAY-37  Learn TypeScript basics: variables, types, functions, if/else, loops (We
 
 **Secondary:** SBDC Zoom call with Rick Bushman on Wednesday 6/10 at 10am. Continue applying to QA roles daily.
 
-**DayLog done this session:** Session pause/resume feature (pause clock for breaks, subtract from billable hours, show on invoices). Break delete support added.
+### Completed this session (2026-06-08):
+- Session pause/resume feature (pause clock for breaks, subtract from billable hours, show on invoices)
+- Break delete support (× button on hover in break history)
+- Took a break from 2:25 PM – 3:08 PM (picked up cash for Jaime)
 
 ### Still to do (business):
-- **SBDC Zoom call** — Wednesday 6/10 at 10am with Rick Bushman (finding clients, rates, operating agreement, bank account)
+- **SBDC Zoom call** — Wednesday 6/10 at 10am with Rick Bushman
+  - Topics: finding clients, raising rates, operating agreement, business bank account
+  - **Ask about business expenses** — how to establish deductions, home office, phone/internet split, simplified vs actual method
+- Open a business bank account (bring EIN, LLC confirmation, and UBI number) — makes expense tracking easier
+- Start tracking business expenses (save receipts, note date/amount/category)
 - Order printed business cards (quote requested from After Hours Creative — matte black foil embossing on Colorplan Natural 540gsm)
-- Open a business bank account (bring EIN, LLC confirmation, and UBI number)
 - Write a simple operating agreement (SBDC can help)
 - Add profile photo to LinkedIn
 - Add About/Summary section to LinkedIn
@@ -424,6 +430,7 @@ DAY-37  Learn TypeScript basics: variables, types, functions, if/else, loops (We
 - Keep applying to QA roles daily across all platforms
 
 ### Future ideas:
+- **Expense tracking in DayLog** — Log business expenses with categories, receipt photos, export for Schedule C
 - **Portfolio website** — Build a simple site to showcase completed projects, link QR code to it instead of LinkedIn
 - **Multi-client support in DayLog** — Separate invoices, rates, and time tracking per client
 - **Client management** — Client profiles with company info, contact details, contracts, payment terms
