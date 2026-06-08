@@ -1,4 +1,4 @@
-import type { Session } from '../types';
+import type { Session, SessionBreak } from '../types';
 import styles from './DayCard.module.css';
 
 interface Props {
@@ -21,9 +21,17 @@ function formatTimeRange(clockIn: string, clockOut: string | null): string {
   return `${start} — ${end}`;
 }
 
-function duration(clockIn: string, clockOut: string | null): string {
+function duration(clockIn: string, clockOut: string | null, breaks?: SessionBreak[]): string {
   if (!clockOut) return '';
-  const ms = new Date(clockOut).getTime() - new Date(clockIn).getTime();
+  let ms = new Date(clockOut).getTime() - new Date(clockIn).getTime();
+  if (breaks) {
+    for (const b of breaks) {
+      const bStart = new Date(b.pause_time).getTime();
+      const bEnd = b.resume_time ? new Date(b.resume_time).getTime() : new Date(clockOut).getTime();
+      ms -= (bEnd - bStart);
+    }
+  }
+  if (ms < 0) ms = 0;
   const hours = Math.floor(ms / 3_600_000);
   const minutes = Math.floor((ms % 3_600_000) / 60_000);
   if (hours === 0) return `${minutes}m`;
@@ -36,7 +44,7 @@ export function DayCard({ session, onDelete }: Props) {
       <div className={styles.header}>
         <span className={styles.date}>{formatDate(session.clock_in)}</span>
         <div className={styles.headerRight}>
-          <span className={styles.duration}>{duration(session.clock_in, session.clock_out)}</span>
+          <span className={styles.duration}>{duration(session.clock_in, session.clock_out, session.breaks)}</span>
           {onDelete && (
             <button className={styles.deleteBtn} onClick={() => onDelete?.(session.id)} title="Delete session">
               &times;

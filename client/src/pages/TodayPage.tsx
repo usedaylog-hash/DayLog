@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { Session, Commit } from '../types';
+import type { Session, Commit, SessionBreak } from '../types';
 import { api } from '../api/client';
 import { ClockButton } from '../components/ClockButton';
 import { CommitList } from '../components/CommitList';
@@ -17,6 +17,8 @@ export function TodayPage() {
   const [lastHandoff, setLastHandoff] = useState<string | null>(null);
   const [showHandoffPanel, setShowHandoffPanel] = useState(false);
   const [handoffNote, setHandoffNote] = useState('');
+  const [showPausePrompt, setShowPausePrompt] = useState(false);
+  const [pauseReason, setPauseReason] = useState('');
 
   const loadSession = useCallback(async () => {
     try {
@@ -38,9 +40,11 @@ export function TodayPage() {
     loadSession();
   }, [loadSession]);
 
-  // Poll for commits while clocked in
+  const isPaused = session?.breaks?.some((b: SessionBreak) => !b.resume_time) ?? false;
+
+  // Poll for commits while clocked in and not paused
   useEffect(() => {
-    if (!session) return;
+    if (!session || isPaused) return;
 
     const id = setInterval(async () => {
       try {
@@ -52,7 +56,7 @@ export function TodayPage() {
     }, POLL_INTERVAL);
 
     return () => clearInterval(id);
-  }, [session]);
+  }, [session, isPaused]);
 
   async function handleClockIn() {
     setActionLoading(true);
@@ -97,6 +101,51 @@ export function TodayPage() {
     );
   }
 
+  function handlePauseClick() {
+    setShowPausePrompt(true);
+  }
+
+  async function handlePauseConfirm() {
+    setActionLoading(true);
+    try {
+      const updated = await api.pauseSession(pauseReason);
+      setSession(updated);
+      setCommits(updated.commits || []);
+      setShowPausePrompt(false);
+      setPauseReason('');
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  function handlePauseCancel() {
+    setShowPausePrompt(false);
+    setPauseReason('');
+  }
+
+  async function handleResume() {
+    setActionLoading(true);
+    try {
+      const updated = await api.resumeSession();
+      setSession(updated);
+      setCommits(updated.commits || []);
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  async function handleDeleteBreak(breakId: number) {
+    try {
+      await api.deleteBreak(breakId);
+      setSession((prev) => prev ? {
+        ...prev,
+        breaks: prev.breaks?.filter((b) => b.id !== breakId),
+      } : prev);
+    } catch {
+      // ignore
+    }
+  }
+
   if (loading) {
     return <p className={styles.loading}>Loading...</p>;
   }
@@ -112,7 +161,7 @@ export function TodayPage() {
         onClockOut={handleClockOutClick}
       />
 
-      {isClockedIn && (
+      {isClockedIn && !isPaused && (
         <p className={styles.status}>
           Clocked in since{' '}
           {new Date(session.clock_in).toLocaleTimeString([], {
@@ -120,6 +169,96 @@ export function TodayPage() {
             minute: '2-digit',
           })}
         </p>
+      )}
+
+      {isClockedIn && isPaused && (() => {
+        const activeBreak = session.breaks?.find((b: SessionBreak) => !b.resume_time);
+        return (
+          <div className={styles.pausedStatus}>
+            <p className={styles.pausedText}>
+              Paused since{' '}
+              {activeBreak ? new Date(activeBreak.pause_time).toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+              }) : ''}
+              {activeBreak?.reason ? ` — ${activeBreak.reason}` : ''}
+            </p>
+            <button
+              className={styles.resumeBtn}
+              onClick={handleResume}
+              disabled={actionLoading}
+            >
+              {actionLoading ? 'Resuming...' : 'Resume'}
+            </button>
+          </div>
+        );
+      })()}
+
+      {isClockedIn && !isPaused && !showHandoffPanel && !showPausePrompt && (
+        <div className={styles.pauseActions}>
+          <button
+            className={styles.pauseBtn}
+            onClick={handlePauseClick}
+            disabled={actionLoading}
+          >
+            Pause
+          </button>
+        </div>
+      )}
+
+      {showPausePrompt && (
+        <div className={styles.handoffPanel}>
+          <h3 className={styles.handoffTitle}>Pause Session</h3>
+          <p className={styles.handoffDesc}>What are you stepping away for?</p>
+          <input
+            type="text"
+            className={styles.pauseInput}
+            placeholder="Lunch, errand, appointment..."
+            value={pauseReason}
+            onChange={(e) => setPauseReason(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') handlePauseConfirm(); }}
+            autoFocus
+          />
+          <div className={styles.handoffButtons}>
+            <button
+              className={styles.handoffCancel}
+              onClick={handlePauseCancel}
+              disabled={actionLoading}
+            >
+              Cancel
+            </button>
+            <button
+              className={styles.pauseConfirmBtn}
+              onClick={handlePauseConfirm}
+              disabled={actionLoading}
+            >
+              {actionLoading ? 'Pausing...' : 'Pause'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {isClockedIn && session.breaks && session.breaks.filter((b: SessionBreak) => b.resume_time).length > 0 && (
+        <div className={styles.breakHistory}>
+          <h4 className={styles.breakHistoryTitle}>Breaks</h4>
+          {session.breaks.filter((b: SessionBreak) => b.resume_time).map((b: SessionBreak) => (
+            <div key={b.id} className={styles.breakItem}>
+              <span className={styles.breakTime}>
+                {new Date(b.pause_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                {' – '}
+                {new Date(b.resume_time!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </span>
+              {b.reason && <span className={styles.breakReason}>{b.reason}</span>}
+              <button
+                className={styles.breakDeleteBtn}
+                onClick={() => handleDeleteBreak(b.id)}
+                title="Delete break"
+              >
+                &times;
+              </button>
+            </div>
+          ))}
+        </div>
       )}
 
       {showHandoffPanel && (

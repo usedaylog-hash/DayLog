@@ -9,10 +9,22 @@ export interface CommitInput {
   comment: string | null;
 }
 
-export function generateSummary(clockIn: string, clockOut: string, notes: NoteInput[], commits: CommitInput[] = []): string {
+export interface BreakInput {
+  pause_time: string;
+  resume_time: string | null;
+  reason: string;
+}
+
+export function generateSummary(clockIn: string, clockOut: string, notes: NoteInput[], commits: CommitInput[] = [], breaks: BreakInput[] = []): string {
   const start = new Date(clockIn);
   const end = new Date(clockOut);
-  const ms = end.getTime() - start.getTime();
+  let ms = end.getTime() - start.getTime();
+  for (const b of breaks) {
+    const bStart = new Date(b.pause_time).getTime();
+    const bEnd = b.resume_time ? new Date(b.resume_time).getTime() : end.getTime();
+    ms -= (bEnd - bStart);
+  }
+  if (ms < 0) ms = 0;
   const hours = Math.floor(ms / 3_600_000);
   const minutes = Math.floor((ms % 3_600_000) / 60_000);
 
@@ -47,10 +59,16 @@ export function generateSummary(clockIn: string, clockOut: string, notes: NoteIn
   return lines.join('\n');
 }
 
-export function generateHandoff(clockIn: string, clockOut: string, commits: CommitInput[], note?: string): string {
+export function generateHandoff(clockIn: string, clockOut: string, commits: CommitInput[], note?: string, breaks: BreakInput[] = []): string {
   const start = new Date(clockIn);
   const end = new Date(clockOut);
-  const ms = end.getTime() - start.getTime();
+  let ms = end.getTime() - start.getTime();
+  for (const b of breaks) {
+    const bStart = new Date(b.pause_time).getTime();
+    const bEnd = b.resume_time ? new Date(b.resume_time).getTime() : end.getTime();
+    ms -= (bEnd - bStart);
+  }
+  if (ms < 0) ms = 0;
   const hours = Math.floor(ms / 3_600_000);
   const minutes = Math.floor((ms % 3_600_000) / 60_000);
   const duration = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
@@ -77,6 +95,17 @@ export function generateHandoff(clockIn: string, clockOut: string, commits: Comm
       if (commit.comment) {
         lines.push(`  - _${commit.comment}_`);
       }
+    }
+  }
+
+  if (breaks.length > 0) {
+    lines.push('', '## Breaks');
+    for (const b of breaks) {
+      const pTime = new Date(b.pause_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const rTime = b.resume_time
+        ? new Date(b.resume_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        : 'ongoing';
+      lines.push(`- ${pTime} – ${rTime}: ${b.reason || 'No reason given'}`);
     }
   }
 

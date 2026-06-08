@@ -5,6 +5,8 @@ import { fileURLToPath } from 'url';
 import PDFDocument from 'pdfkit';
 import { db } from '../db/connection.js';
 import { formatDuration, formatDurationMs, extractActivity, parseBugContent } from '../utils/portfolio-utils.js';
+import { totalBreakMs } from '../utils/invoice-utils.js';
+import type { BreakInput } from '../utils/invoice-utils.js';
 import type { BugReport } from '../utils/portfolio-utils.js';
 
 const router = Router();
@@ -123,15 +125,34 @@ function getPortfolioData(): PortfolioData {
     noteCounts.set(row.session_id, row.count);
   }
 
+  // Batch-load breaks for all sessions
+  const breaksBySession = new Map<number, BreakInput[]>();
+  const breakRows = db.prepare(
+    'SELECT session_id, pause_time, resume_time, reason FROM session_breaks ORDER BY pause_time ASC'
+  ).all() as (BreakInput & { session_id: number })[];
+  for (const row of breakRows) {
+    const arr = breaksBySession.get(row.session_id) || [];
+    arr.push({ pause_time: row.pause_time, resume_time: row.resume_time, reason: row.reason });
+    breaksBySession.set(row.session_id, arr);
+  }
+
   let totalMs = 0;
   const portfolioSessions: PortfolioSession[] = sessions.map((s) => {
-    const ms = new Date(s.clock_out).getTime() - new Date(s.clock_in).getTime();
+    const rawMs = new Date(s.clock_out).getTime() - new Date(s.clock_in).getTime();
+    const breaks = breaksBySession.get(s.id) || [];
+    const bMs = totalBreakMs(breaks);
+    const ms = Math.max(0, rawMs - bMs);
     totalMs += ms;
+
+    // Format duration from ms
+    const hours = Math.floor(ms / 3_600_000);
+    const minutes = Math.floor((ms % 3_600_000) / 60_000);
+    const durationStr = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
 
     return {
       id: s.id,
       date: s.clock_in,
-      duration: formatDuration(s.clock_in, s.clock_out),
+      duration: durationStr,
       commitCount: commitCounts.get(s.id) || 0,
       noteCount: noteCounts.get(s.id) || 0,
       summary: s.summary,

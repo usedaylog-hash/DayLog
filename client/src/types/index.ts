@@ -8,6 +8,15 @@ export interface Commit {
   comment: string | null;
 }
 
+export interface SessionBreak {
+  id: number;
+  session_id: number;
+  pause_time: string;
+  resume_time: string | null;
+  reason: string;
+  created_at: string;
+}
+
 export interface Session {
   id: number;
   clock_in: string;
@@ -17,6 +26,7 @@ export interface Session {
   created_at: string;
   notes?: Note[];
   commits?: Commit[];
+  breaks?: SessionBreak[];
 }
 
 export interface Note {

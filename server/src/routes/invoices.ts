@@ -1,8 +1,8 @@
 import { Router, Response } from 'express';
 import PDFDocument from 'pdfkit';
 import { db } from '../db/connection.js';
-import { getBiweeklyPeriods, formatTime, roundToHalfHour, DAY_MS } from '../utils/invoice-utils.js';
-import type { LineItem } from '../utils/invoice-utils.js';
+import { getBiweeklyPeriods, formatTime, roundToHalfHour, totalBreakMs, DAY_MS } from '../utils/invoice-utils.js';
+import type { LineItem, BreakInput } from '../utils/invoice-utils.js';
 
 const router = Router();
 
@@ -40,10 +40,43 @@ function getLineItems(periodStart: string, periodEnd: string, hourlyRate: number
   for (const session of sessions) {
     const clockIn = roundToHalfHour(new Date(session.clock_in));
     const clockOut = roundToHalfHour(new Date(session.clock_out));
-    const ms = clockOut.getTime() - clockIn.getTime();
-    const sessionHours = Math.round((ms / 3_600_000) * 100) / 100;
     const dateStr = session.clock_in.split('T')[0];
-    const timeRange = `${formatTime(session.clock_in)} – ${formatTime(session.clock_out)}`;
+
+    // Get breaks for this session
+    const breaks = db.prepare(
+      'SELECT pause_time, resume_time, reason FROM session_breaks WHERE session_id = ? ORDER BY pause_time ASC'
+    ).all(session.id) as BreakInput[];
+
+    // Subtract break time (rounded to nearest 30 min each)
+    let breakMs = 0;
+    for (const b of breaks) {
+      if (b.resume_time) {
+        const bStart = roundToHalfHour(new Date(b.pause_time));
+        const bEnd = roundToHalfHour(new Date(b.resume_time));
+        breakMs += bEnd.getTime() - bStart.getTime();
+      }
+    }
+
+    const totalMs = clockOut.getTime() - clockIn.getTime() - breakMs;
+    const sessionHours = Math.round((Math.max(0, totalMs) / 3_600_000) * 100) / 100;
+
+    // Build segmented description if there are breaks
+    const descParts: string[] = [];
+    if (breaks.length > 0) {
+      let segStart = formatTime(session.clock_in);
+      for (const b of breaks) {
+        if (b.resume_time) {
+          const bStartStr = formatTime(b.pause_time);
+          const bEndStr = formatTime(b.resume_time);
+          descParts.push(`${segStart} - ${bStartStr}`);
+          descParts.push(`  [Break: ${bStartStr} - ${bEndStr} -- ${b.reason || 'Break'}]`);
+          segStart = bEndStr;
+        }
+      }
+      descParts.push(`${segStart} - ${formatTime(session.clock_out)}`);
+    } else {
+      descParts.push(`${formatTime(session.clock_in)} – ${formatTime(session.clock_out)}`);
+    }
 
     // Extract work items from summary, filtering noise
     const workItems: string[] = [];
@@ -53,34 +86,33 @@ function getLineItems(periodStart: string, periodEnd: string, hourlyRate: number
         if (!trimmed) continue;
         if (trimmed.startsWith('Session:')) continue;
         if (/^\d+ commits?$/.test(trimmed)) continue;
-        // Strip git hash prefix if present
+        if (/^\d+ notes?$/.test(trimmed)) continue;
         const commitMatch = trimmed.match(/^[a-f0-9]{7}\s+(.+)/);
         const text = commitMatch ? commitMatch[1] : trimmed;
-        // Filter out noisy/housekeeping commits
         if (/^Update CLAUDE\.md/i.test(text)) continue;
         if (/^Update reports/i.test(text)) continue;
         workItems.push(text);
       }
     }
 
-    // Limit to 3 work items to keep rows concise
     const maxItems = 3;
-    let descLines: string;
     if (workItems.length > maxItems) {
-      const shown = workItems.slice(0, maxItems).join('\n');
-      descLines = `${timeRange}\n${shown}\n+ ${workItems.length - maxItems} more`;
+      descParts.push(workItems.slice(0, maxItems).join('\n'));
+      descParts.push(`+ ${workItems.length - maxItems} more`);
     } else if (workItems.length > 0) {
-      descLines = `${timeRange}\n${workItems.join('\n')}`;
+      descParts.push(workItems.join('\n'));
     } else {
-      descLines = `${timeRange}: Development work`;
+      descParts.push('Development work');
     }
 
-    const description = descLines;
+    if (breaks.length > 0) {
+      descParts.push(`Total: ${sessionHours.toFixed(1)} hrs`);
+    }
 
     items.push({
       date: dateStr,
       location: 'Remote',
-      description,
+      description: descParts.join('\n'),
       hours: sessionHours,
       rate: hourlyRate,
       amount: Math.round(sessionHours * hourlyRate * 100) / 100,

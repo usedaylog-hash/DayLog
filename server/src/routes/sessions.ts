@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import fs from 'fs';
 import { db } from '../db/connection.js';
-import type { Session, Note, SessionWithNotes } from '../types/index.js';
+import type { Session, Note, SessionBreak, SessionWithNotes } from '../types/index.js';
 import { sweepCommits } from './commits.js';
 import type { Commit } from './commits.js';
 import { generateSummary, generateHandoff } from '../utils/session-utils.js';
@@ -31,7 +31,7 @@ router.post('/clock-in', (_req, res) => {
     'SELECT * FROM sessions WHERE id = ?'
   ).get(result.lastInsertRowid) as Session;
 
-  res.status(201).json({ ...session, notes: [], commits: [] });
+  res.status(201).json({ ...session, notes: [], commits: [], breaks: [] });
 });
 
 // POST /api/sessions/clock-out
@@ -53,9 +53,19 @@ router.post('/clock-out', (req, res) => {
   const commits = sweepCommits(session);
 
   const now = new Date().toISOString();
-  const summary = generateSummary(session.clock_in, now, notes, commits);
+
+  // Auto-close any active break
+  db.prepare(
+    'UPDATE session_breaks SET resume_time = ? WHERE session_id = ? AND resume_time IS NULL'
+  ).run(now, session.id);
+
+  const breaks = db.prepare(
+    'SELECT * FROM session_breaks WHERE session_id = ? ORDER BY pause_time ASC'
+  ).all(session.id) as SessionBreak[];
+
+  const summary = generateSummary(session.clock_in, now, notes, commits, breaks);
   const handoffNote = req.body?.handoffNote as string | undefined;
-  const handoff = generateHandoff(session.clock_in, now, commits, handoffNote);
+  const handoff = generateHandoff(session.clock_in, now, commits, handoffNote, breaks);
 
   db.prepare(
     'UPDATE sessions SET clock_out = ?, summary = ?, handoff = ? WHERE id = ?'
@@ -67,7 +77,7 @@ router.post('/clock-out', (req, res) => {
     'SELECT * FROM sessions WHERE id = ?'
   ).get(session.id) as Session;
 
-  res.json({ ...updated, notes, commits });
+  res.json({ ...updated, notes, commits, breaks });
 });
 
 // GET /api/sessions/last-handoff
@@ -98,7 +108,109 @@ router.get('/current', (_req, res) => {
     'SELECT * FROM commits WHERE session_id = ? ORDER BY timestamp ASC'
   ).all(session.id) as Commit[];
 
-  res.json({ ...session, notes, commits });
+  const breaks = db.prepare(
+    'SELECT * FROM session_breaks WHERE session_id = ? ORDER BY pause_time ASC'
+  ).all(session.id) as SessionBreak[];
+
+  res.json({ ...session, notes, commits, breaks });
+});
+
+// POST /api/sessions/pause
+router.post('/pause', (req, res) => {
+  const session = db.prepare(
+    'SELECT * FROM sessions WHERE clock_out IS NULL'
+  ).get() as Session | undefined;
+
+  if (!session) {
+    res.status(400).json({ error: 'Not clocked in' });
+    return;
+  }
+
+  // Check if already paused
+  const activeBreak = db.prepare(
+    'SELECT * FROM session_breaks WHERE session_id = ? AND resume_time IS NULL'
+  ).get(session.id) as SessionBreak | undefined;
+
+  if (activeBreak) {
+    res.status(400).json({ error: 'Already paused' });
+    return;
+  }
+
+  const now = new Date().toISOString();
+  const reason = (req.body?.reason as string) || '';
+
+  db.prepare(
+    'INSERT INTO session_breaks (session_id, pause_time, reason) VALUES (?, ?, ?)'
+  ).run(session.id, now, reason);
+
+  const breaks = db.prepare(
+    'SELECT * FROM session_breaks WHERE session_id = ? ORDER BY pause_time ASC'
+  ).all(session.id) as SessionBreak[];
+
+  const notes = db.prepare(
+    'SELECT * FROM notes WHERE session_id = ? ORDER BY timestamp ASC'
+  ).all(session.id) as Note[];
+
+  const commits = db.prepare(
+    'SELECT * FROM commits WHERE session_id = ? ORDER BY timestamp ASC'
+  ).all(session.id) as Commit[];
+
+  res.json({ ...session, notes, commits, breaks });
+});
+
+// POST /api/sessions/resume
+router.post('/resume', (_req, res) => {
+  const session = db.prepare(
+    'SELECT * FROM sessions WHERE clock_out IS NULL'
+  ).get() as Session | undefined;
+
+  if (!session) {
+    res.status(400).json({ error: 'Not clocked in' });
+    return;
+  }
+
+  const activeBreak = db.prepare(
+    'SELECT * FROM session_breaks WHERE session_id = ? AND resume_time IS NULL'
+  ).get(session.id) as SessionBreak | undefined;
+
+  if (!activeBreak) {
+    res.status(400).json({ error: 'Not paused' });
+    return;
+  }
+
+  const now = new Date().toISOString();
+  db.prepare(
+    'UPDATE session_breaks SET resume_time = ? WHERE id = ?'
+  ).run(now, activeBreak.id);
+
+  const breaks = db.prepare(
+    'SELECT * FROM session_breaks WHERE session_id = ? ORDER BY pause_time ASC'
+  ).all(session.id) as SessionBreak[];
+
+  const notes = db.prepare(
+    'SELECT * FROM notes WHERE session_id = ? ORDER BY timestamp ASC'
+  ).all(session.id) as Note[];
+
+  const commits = db.prepare(
+    'SELECT * FROM commits WHERE session_id = ? ORDER BY timestamp ASC'
+  ).all(session.id) as Commit[];
+
+  res.json({ ...session, notes, commits, breaks });
+});
+
+// DELETE /api/sessions/breaks/:id
+router.delete('/breaks/:id', (req, res) => {
+  const brk = db.prepare(
+    'SELECT * FROM session_breaks WHERE id = ?'
+  ).get(req.params.id) as SessionBreak | undefined;
+
+  if (!brk) {
+    res.status(404).json({ error: 'Break not found' });
+    return;
+  }
+
+  db.prepare('DELETE FROM session_breaks WHERE id = ?').run(brk.id);
+  res.json({ ok: true });
 });
 
 // GET /api/sessions
@@ -114,7 +226,10 @@ router.get('/', (_req, res) => {
     const commits = db.prepare(
       'SELECT * FROM commits WHERE session_id = ? ORDER BY timestamp ASC'
     ).all(s.id) as Commit[];
-    return { ...s, notes, commits };
+    const breaks = db.prepare(
+      'SELECT * FROM session_breaks WHERE session_id = ? ORDER BY pause_time ASC'
+    ).all(s.id) as SessionBreak[];
+    return { ...s, notes, commits, breaks };
   });
 
   res.json(result);
@@ -131,6 +246,7 @@ router.delete('/:id', (req, res) => {
     return;
   }
 
+  db.prepare('DELETE FROM session_breaks WHERE session_id = ?').run(session.id);
   db.prepare('DELETE FROM commits WHERE session_id = ?').run(session.id);
   db.prepare('DELETE FROM notes WHERE session_id = ?').run(session.id);
   db.prepare('DELETE FROM sessions WHERE id = ?').run(session.id);
@@ -157,7 +273,11 @@ router.get('/:id', (req, res) => {
     'SELECT * FROM commits WHERE session_id = ? ORDER BY timestamp ASC'
   ).all(session.id) as Commit[];
 
-  res.json({ ...session, notes, commits });
+  const breaks = db.prepare(
+    'SELECT * FROM session_breaks WHERE session_id = ? ORDER BY pause_time ASC'
+  ).all(session.id) as SessionBreak[];
+
+  res.json({ ...session, notes, commits, breaks });
 });
 
 function writeLastSessionFile(handoff: string): void {

@@ -48,6 +48,23 @@ export function roundToHalfHour(d: Date): Date {
   return result;
 }
 
+export interface BreakInput {
+  pause_time: string;
+  resume_time: string | null;
+  reason: string;
+}
+
+/** Calculate total break time in milliseconds. Open breaks use `now` as end time. */
+export function totalBreakMs(breaks: BreakInput[]): number {
+  let total = 0;
+  for (const b of breaks) {
+    const start = new Date(b.pause_time).getTime();
+    const end = b.resume_time ? new Date(b.resume_time).getTime() : Date.now();
+    total += end - start;
+  }
+  return total;
+}
+
 export function formatTime(iso: string): string {
   const d = roundToHalfHour(new Date(iso));
   return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Los_Angeles' });

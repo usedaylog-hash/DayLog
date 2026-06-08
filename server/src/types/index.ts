@@ -26,7 +26,17 @@ export interface Commit {
   created_at: string;
 }
 
+export interface SessionBreak {
+  id: number;
+  session_id: number;
+  pause_time: string;
+  resume_time: string | null;
+  reason: string;
+  created_at: string;
+}
+
 export interface SessionWithNotes extends Session {
   notes: Note[];
   commits: Commit[];
+  breaks: SessionBreak[];
 }

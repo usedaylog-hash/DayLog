@@ -19,6 +19,21 @@ export const api = {
     return request('/sessions/clock-in', { method: 'POST' });
   },
 
+  pauseSession(reason: string): Promise<Session> {
+    return request('/sessions/pause', {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    });
+  },
+
+  resumeSession(): Promise<Session> {
+    return request('/sessions/resume', { method: 'POST' });
+  },
+
+  deleteBreak(id: number): Promise<void> {
+    return request(`/sessions/breaks/${id}`, { method: 'DELETE' });
+  },
+
   clockOut(handoffNote?: string): Promise<Session> {
     return request('/sessions/clock-out', {
       method: 'POST',

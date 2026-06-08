@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { generateSummary, generateHandoff } from './session-utils.js';
-import type { NoteInput, CommitInput } from './session-utils.js';
+import type { NoteInput, CommitInput, BreakInput } from './session-utils.js';
 
 const clockIn = '2026-03-10T09:00:00Z';
 const clockOut = '2026-03-10T11:30:00Z'; // 2h 30m
@@ -78,6 +78,27 @@ describe('generateSummary', () => {
     expect(result).toContain('Session: 45m');
     expect(result).not.toContain('h');
   });
+
+  it('subtracts break time from duration', () => {
+    // 9:00 - 11:30 = 2h 30m, minus 1h break = 1h 30m
+    const breaks: BreakInput[] = [{
+      pause_time: '2026-03-10T10:00:00Z',
+      resume_time: '2026-03-10T11:00:00Z',
+      reason: 'Lunch',
+    }];
+    const result = generateSummary(clockIn, clockOut, [], [], breaks);
+    expect(result).toContain('Session: 1h 30m');
+  });
+
+  it('handles multiple breaks', () => {
+    // 9:00 - 11:30 = 2h 30m, minus 30m + 30m = 1h 30m
+    const breaks: BreakInput[] = [
+      { pause_time: '2026-03-10T09:30:00Z', resume_time: '2026-03-10T10:00:00Z', reason: 'Coffee' },
+      { pause_time: '2026-03-10T11:00:00Z', resume_time: '2026-03-10T11:30:00Z', reason: 'Walk' },
+    ];
+    const result = generateSummary(clockIn, clockOut, [], [], breaks);
+    expect(result).toContain('Session: 1h 30m');
+  });
 });
 
 describe('generateHandoff', () => {
@@ -127,5 +148,31 @@ describe('generateHandoff', () => {
   it('ends with a newline', () => {
     const result = generateHandoff(clockIn, clockOut, []);
     expect(result.endsWith('\n')).toBe(true);
+  });
+
+  it('subtracts break time from duration', () => {
+    const breaks: BreakInput[] = [{
+      pause_time: '2026-03-10T10:00:00Z',
+      resume_time: '2026-03-10T11:00:00Z',
+      reason: 'Lunch',
+    }];
+    const result = generateHandoff(clockIn, clockOut, [], undefined, breaks);
+    expect(result).toContain('**Duration:** 1h 30m');
+  });
+
+  it('includes breaks section in handoff', () => {
+    const breaks: BreakInput[] = [{
+      pause_time: '2026-03-10T10:00:00Z',
+      resume_time: '2026-03-10T11:00:00Z',
+      reason: 'Lunch',
+    }];
+    const result = generateHandoff(clockIn, clockOut, [], undefined, breaks);
+    expect(result).toContain('## Breaks');
+    expect(result).toContain('Lunch');
+  });
+
+  it('omits breaks section when no breaks', () => {
+    const result = generateHandoff(clockIn, clockOut, []);
+    expect(result).not.toContain('## Breaks');
   });
 });

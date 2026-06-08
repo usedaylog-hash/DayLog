@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { getBiweeklyPeriods, formatTime, roundToHalfHour, ANCHOR, PERIOD_MS, DAY_MS } from './invoice-utils.js';
+import { getBiweeklyPeriods, formatTime, roundToHalfHour, totalBreakMs, ANCHOR, PERIOD_MS, DAY_MS } from './invoice-utils.js';
 
 describe('getBiweeklyPeriods', () => {
   beforeEach(() => {
@@ -145,6 +145,41 @@ describe('formatTime (rounds to nearest half hour)', () => {
     // 9:37 AM Pacific (PST) = 17:37 UTC
     const result = formatTime('2026-01-15T17:37:00Z');
     expect(result).toMatch(/9:30\s*AM/);
+  });
+});
+
+describe('totalBreakMs', () => {
+  it('returns 0 for empty breaks array', () => {
+    expect(totalBreakMs([])).toBe(0);
+  });
+
+  it('calculates time for a single completed break', () => {
+    const breaks = [{
+      pause_time: '2026-03-10T12:00:00Z',
+      resume_time: '2026-03-10T13:00:00Z',
+      reason: 'Lunch',
+    }];
+    expect(totalBreakMs(breaks)).toBe(3_600_000); // 1 hour
+  });
+
+  it('sums multiple breaks', () => {
+    const breaks = [
+      { pause_time: '2026-03-10T12:00:00Z', resume_time: '2026-03-10T13:00:00Z', reason: 'Lunch' },
+      { pause_time: '2026-03-10T15:30:00Z', resume_time: '2026-03-10T16:00:00Z', reason: 'Errand' },
+    ];
+    expect(totalBreakMs(breaks)).toBe(5_400_000); // 1h 30m
+  });
+
+  it('uses Date.now() for open breaks', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-03-10T13:00:00Z'));
+    const breaks = [{
+      pause_time: '2026-03-10T12:00:00Z',
+      resume_time: null,
+      reason: 'Lunch',
+    }];
+    expect(totalBreakMs(breaks)).toBe(3_600_000);
+    vi.useRealTimers();
   });
 });
 

@@ -34,7 +34,7 @@ DayLog/
 │       ├── db/
 │       │   ├── connection.ts    # SQLite setup
 │       │   ├── migrate.ts       # Migration runner (auto-applies on startup)
-│       │   └── migrations/      # SQL migration files (001-006)
+│       │   └── migrations/      # SQL migration files (001-009)
 │       ├── routes/              # sessions, notes, commits, test-runs, portfolio, invoices
 │       └── index.ts             # Express app setup (port 3001)
 └── data/daylog.db               # SQLite database
@@ -58,11 +58,12 @@ Client proxies API requests to localhost:3001 via Vite config.
 
 ## Database Schema
 
-Five tables, managed by sequential SQL migrations:
+Six tables, managed by sequential SQL migrations (001–009):
 
 - **sessions**: `id, clock_in, clock_out, summary, handoff, created_at`
 - **notes**: `id, session_id (FK), content, timestamp, created_at`
 - **commits**: `id, session_id (FK), hash, message, author, timestamp, comment, created_at` (UNIQUE on session_id+hash)
+- **session_breaks**: `id, session_id (FK), pause_time, resume_time, reason, created_at`
 - **invoices**: `id, invoice_number, invoice_date, period_start, period_end, hourly_rate, total_hours, total_amount, paid_date, paid_amount, created_at`
 - **invoice_config**: `key, value` (key/value store for contractor/client info, hourly rate)
 
@@ -245,6 +246,48 @@ Three fixes to invoice PDF generation in `server/src/routes/invoices.ts`:
 
 ---
 
+## Session Pause/Resume (2026-06-08) — Done
+
+Pause the clock when stepping away from work (lunch, errands, appointments) so billable hours are accurate. Breaks show on invoices so the client can see exactly when work happened.
+
+**How it works:**
+- Click **Pause** → enter a reason → session clock stops
+- Click **Resume** → clock restarts, break is logged with times and reason
+- **Clock Out** auto-closes any active break
+- Breaks are subtracted from duration everywhere: TodayPage status, DayCard history, summary/handoff, portfolio, invoices
+- Delete individual breaks via `×` button on hover in break history
+
+**Database:** `session_breaks` table (migration `009-session-breaks.sql`) — `id, session_id (FK), pause_time, resume_time, reason, created_at`. A session is "paused" when it has a break row with `resume_time IS NULL`.
+
+**Endpoints:**
+- `POST /api/sessions/pause` — accepts `{ reason }`, inserts break row
+- `POST /api/sessions/resume` — sets `resume_time` on active break
+- `DELETE /api/sessions/breaks/:id` — delete a break
+
+**Invoice integration:** `getLineItems()` queries breaks per session, subtracts rounded break time from billable hours, and builds segmented descriptions showing work periods with break annotations:
+```
+8:00 AM - 12:00 PM
+  [Break: 12:00 PM - 1:00 PM -- Lunch break]
+1:00 PM - 3:30 PM
+```
+
+**Utility:** `totalBreakMs(breaks)` in `server/src/utils/invoice-utils.ts` — reused across invoice, summary, and portfolio calculations.
+
+**Key files:**
+- `server/src/routes/sessions.ts` — pause/resume/delete endpoints, breaks included in all session responses
+- `server/src/utils/session-utils.ts` — `generateSummary()` and `generateHandoff()` accept breaks, subtract from duration
+- `server/src/utils/invoice-utils.ts` — `totalBreakMs()` helper, `BreakInput` interface
+- `server/src/routes/invoices.ts` — `getLineItems()` subtracts break time, shows segmented descriptions
+- `server/src/routes/portfolio.ts` — batch-loads breaks, subtracts from session durations
+- `client/src/pages/TodayPage.tsx` + `.module.css` — pause prompt, paused status, break history with delete
+- `client/src/components/DayCard.tsx` — duration subtracts break time
+- `client/src/types/index.ts` — `SessionBreak` interface, `breaks` field on `Session`
+- `client/src/api/client.ts` — `pauseSession()`, `resumeSession()`, `deleteBreak()`
+
+**Important:** When deploying new server code, the tsx watch process must be restarted to pick up route changes. The systemd service (`daylog.service`) needs `sudo systemctl restart daylog`. New SQL migration files don't trigger tsx watch restarts.
+
+---
+
 ## LLC Formation & Business Setup (2026-06-03) — Done
 
 Luke formed **LM Systems Consulting LLC** on June 3, 2026.
@@ -271,9 +314,16 @@ Luke formed **LM Systems Consulting LLC** on June 3, 2026.
 - **Nature of business:** Software development and quality assurance consulting services
 - **Client:** Floburn Inc. / Voxcar (current, $20/hr)
 
+### SBDC Advisor — Assigned (2026-06-08)
+- **Advisor:** Rick Bushman, Certified Business Advisor, Washington SBDC at WSU Everett
+- **Phone:** (425) 248-4216 / (425) 948-0288
+- **Office:** 915 N. Broadway, Suite 310, Everett, WA 98201
+- **Zoom meeting scheduled:** Wednesday 6/10 at 10am
+- **Topics to discuss:** Finding more clients, raising rates, operating agreement, business bank account
+
 ### Resources identified for business growth:
 - **SCORE Yakima Valley** — Free business mentoring (yakimavalley.score.org)
-- **SBDC at YCDA** — Free business advising, 2520 W. Washington Ave Suite 1, Yakima. Phone: 509-575-1140
+- **SBDC at WSU Everett** — Rick Bushman assigned as advisor (see above)
 - **Job platforms:** ReactJobs.io, Arc.dev, Indeed, Glassdoor, ZipRecruiter, Upwork, We Work Remotely
 - **Networking:** Yakima Dev Meetup, Yakima Tech Connect, North Town Shared Space (32 N Front St)
 
@@ -322,6 +372,8 @@ Designed and generated a business card for LM Systems Consulting LLC, inspired b
 ### Applications submitted:
 - Upwork: Contract Full-Stack Engineer (React + Supabase) — $45/hr proposal
 - micro1: QA Engineer & Product Support Expert
+- ZipRecruiter: QA Automation Tester — Technology Talent Network LLC (Newark, NJ)
+- ZipRecruiter: QA / Test Engineer — fully remote, $34-42/hr, Playwright experience required
 
 ### Strategy:
 - Focus on **manual QA testing roles** (no live coding required) for immediate income
@@ -348,15 +400,21 @@ DAY-37  Learn TypeScript basics: variables, types, functions, if/else, loops (We
 - Practice with real DayLog data structures and components
 - Goal: pass live coding exercises in job interviews
 
+### Progress:
+- **DAY-37 started 2026-06-08** — Variables and types covered (const, let, string, number, boolean). Arrays and objects in progress. Practice file: `learning/basics.ts`. Progress log: `learning/LEARNING-LOG.md`
+
 ---
 
 ## Next Session Plan
 
-**Primary focus:** Start DAY-37 — Learn TypeScript basics. This is a teaching session where Claude explains concepts and Luke types the code. Begin with variables, types, functions, if/else, and loops. Create a practice file (e.g., `learning/basics.ts`) and work through exercises using real DayLog data concepts.
+**Primary focus:** Continue DAY-37 — TypeScript basics lesson. Variables and types are done. Resume with arrays, objects, functions, conditionals, and loops in `learning/basics.ts`. Luke needs to fix typos on lines 13 and 16 first, then move on to functions.
 
-**Secondary:** Continue applying to manual QA testing jobs on Upwork, LinkedIn, Indeed, and ZipRecruiter.
+**Secondary:** SBDC Zoom call with Rick Bushman on Wednesday 6/10 at 10am. Continue applying to QA roles daily.
+
+**DayLog done this session:** Session pause/resume feature (pause clock for breaks, subtract from billable hours, show on invoices). Break delete support added.
 
 ### Still to do (business):
+- **SBDC Zoom call** — Wednesday 6/10 at 10am with Rick Bushman (finding clients, rates, operating agreement, bank account)
 - Order printed business cards (quote requested from After Hours Creative — matte black foil embossing on Colorplan Natural 540gsm)
 - Open a business bank account (bring EIN, LLC confirmation, and UBI number)
 - Write a simple operating agreement (SBDC can help)
