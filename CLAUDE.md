@@ -407,14 +407,19 @@ DAY-37  Learn TypeScript basics: variables, types, functions, if/else, loops (We
 
 ## Next Session Plan
 
-**Primary focus:** Continue DAY-37 — TypeScript basics lesson. Variables and types are done. Resume with arrays, objects, functions, conditionals, and loops in `learning/basics.ts`. Luke needs to fix typos on lines 13 and 16 first, then move on to functions.
+**Primary focus:** Keep improving DayLog so Luke can demo it to his SBDC advisor (Rick Bushman) for pointers — Zoom call Wednesday 6/10 at 10am. Favor visible, demo-able wins. Highest-leverage next steps:
+1. **Deploy DayLog live** for a shareable URL (systemd `daylog.service` + production build already exist; needs a host — Railway/Render/Fly.io/VPS). A working public link beats any single feature for the advisor demo and job/client search.
+2. **Add an AI feature via Claude API** (`@anthropic-ai/sdk` on the Express server) — AI-written session summaries (replace mechanical `generateSummary()`) and/or client-friendly invoice descriptions. Triple-win: Luke can build most of it himself (DAY-37→40 learning), strong résumé material, and the product wedge vs. Toggl/Harvest/Clockify. Use `claude-haiku-4-5` for cheap summarization, `claude-opus-4-8` for reasoning-heavy bits. Consider tracking as a new Linear **Phase 5**.
 
-**Secondary:** SBDC Zoom call with Rick Bushman on Wednesday 6/10 at 10am. Continue applying to QA roles daily.
+**Note:** Luke is also building DayLog features using the **IDE secondary sidebar AI chat** in parallel with the CLI session — check `git status` / `git diff` before assuming the working tree only reflects CLI changes; don't revert work made elsewhere without asking.
+
+**Secondary:** Continue DAY-37 — TypeScript basics in `learning/basics.ts` (variables/types done; fix typos on lines 13 & 16, then functions, conditionals, loops). Continue applying to QA roles daily.
 
 ### Completed this session (2026-06-08):
 - Session pause/resume feature (pause clock for breaks, subtract from billable hours, show on invoices)
 - Break delete support (× button on hover in break history)
 - Took a break from 2:25 PM – 3:08 PM (picked up cash for Jaime)
+- Discussed leverage strategy for DayLog (AI features, live deployment, dev tooling, product direction) — see leverage steps above
 
 ### Still to do (business):
 - **SBDC Zoom call** — Wednesday 6/10 at 10am with Rick Bushman

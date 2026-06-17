@@ -87,6 +87,13 @@ export const api = {
     });
   },
 
+  assistantChat(messages: { role: 'system' | 'user' | 'assistant'; content: string }[]): Promise<{ text: string }> {
+    return request('/assistant/chat', {
+      method: 'POST',
+      body: JSON.stringify({ messages }),
+    });
+  },
+
   getPortfolio(): Promise<PortfolioData> {
     return request('/portfolio');
   },

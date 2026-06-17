@@ -11,6 +11,7 @@ import { testRunsRouter } from './routes/test-runs.js';
 import { commitsRouter } from './routes/commits.js';
 import { portfolioRouter } from './routes/portfolio.js';
 import { invoicesRouter } from './routes/invoices.js';
+import { assistantRouter } from './routes/assistant.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -44,6 +45,7 @@ app.use('/api/sessions', sessionsRouter);
 app.use('/api/notes', notesRouter);
 app.use('/api/test-runs', testRunsRouter);
 app.use('/api', commitsRouter);
+app.use('/api/assistant', assistantRouter);
 app.use('/api/portfolio', portfolioRouter);
 app.use('/api/invoices', invoicesRouter);
 
